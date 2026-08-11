@@ -1,0 +1,79 @@
+/**
+ * Express application assembly.
+ *
+ * Middleware order is load-bearing:
+ *
+ *   /webhook  →  express.raw  →  verifySignature  →  route
+ *   others    →  express.json →  route
+ *
+ * `express.raw` must be scoped to the webhook path and must run before any JSON parser,
+ * or the raw bytes are consumed and the signature can never be verified. `verifySignature`
+ * fails closed if it finds a non-Buffer body, so a future refactor that reorders this
+ * returns 500 rather than silently accepting unauthenticated requests.
+ */
+
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import { verifySignature } from './middleware/verifySignature';
+import { createWebhookRouter, type WebhookDeps } from './webhook.routes';
+import type { Db } from '../db/pool';
+import type { AuditRepository } from '../db/repositories/event.repo';
+import type { Logger } from '../telemetry/logger';
+
+export interface AppDeps extends WebhookDeps {
+  appSecret: string;
+  db: Db;
+  audit: AuditRepository;
+  version?: string;
+}
+
+export function createApp(deps: AppDeps): Express {
+  const app = express();
+
+  app.disable('x-powered-by');
+
+  // --- webhook: raw body, then signature verification -------------------------------
+  app.use(
+    '/webhook',
+    express.raw({ type: '*/*', limit: '1mb' }),
+    (req: Request, res: Response, next: NextFunction) => {
+      // The GET handshake carries no body and no signature.
+      if (req.method === 'GET') return next();
+      return verifySignature(deps.appSecret, (reason) => {
+        deps.logger.warn({ reason }, 'webhook request rejected');
+        void deps.audit.record('WEBHOOK_REJECTED', { reason });
+      })(req, res, next);
+    },
+  );
+
+  app.use(createWebhookRouter(deps));
+
+  // --- everything else: JSON --------------------------------------------------------
+  app.use(express.json({ limit: '256kb' }));
+
+  /** Liveness: the process is up. Deliberately does not touch the database. */
+  app.get('/healthz', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok', version: deps.version ?? 'dev' });
+  });
+
+  /** Readiness: dependencies are reachable. Cloud Run uses this to gate traffic. */
+  app.get('/readyz', async (_req: Request, res: Response) => {
+    const dbOk = await deps.db.healthy();
+    res.status(dbOk ? 200 : 503).json({
+      status: dbOk ? 'ready' : 'degraded',
+      checks: { database: dbOk ? 'ok' : 'unreachable' },
+    });
+  });
+
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: 'not found' });
+  });
+
+  // Express 4 identifies an error handler by its arity — `next` must stay in the
+  // signature even though it is unused.
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    deps.logger.error({ err }, 'unhandled request error');
+    res.status(500).json({ error: 'internal error' });
+  });
+
+  return app;
+}
