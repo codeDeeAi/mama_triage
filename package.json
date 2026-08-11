@@ -1,0 +1,47 @@
+{
+  "name": "mama-triage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WhatsApp-accessible, LLM-based triage and symptom assessment system for postpartum mothers and newborns in underserved Nigerian communities",
+  "author": "Adeola Bada <2024/C/MIT/0127>",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "dev": "tsc -w -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "jest",
+    "test:unit": "jest test/unit",
+    "test:integration": "jest test/integration",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .ts",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "node-pg-migrate up -m migrations",
+    "db:rollback": "node-pg-migrate down -m migrations",
+    "kb:ingest": "node dist/rag/ingest.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.12",
+    "@types/pg": "^8.11.10",
+    "jest": "^29.7.0",
+    "node-pg-migrate": "^9.0.0",
+    "pino-pretty": "^13.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  }
+}
