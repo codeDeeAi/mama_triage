@@ -64,7 +64,7 @@ class FakeWhatsApp {
     this.texts.push(body);
     return [{ waMessageId: 'out' }];
   }
-  async sendButtons(_to: string, body: string) {
+  async sendOptions(_to: string, body: string) {
     this.buttons.push(body);
     return { waMessageId: 'btn' };
   }

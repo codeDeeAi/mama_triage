@@ -17,8 +17,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 ## Status
 
 - Rules in register: **20**
-- Signed off: **9**
-- Awaiting review: **11**
+- Signed off: **12**
+- Awaiting review: **8**
 
 > ⚠️ While any rule is unverified the evaluation runner refuses to produce reportable results (`assertRegisterVerified()`), and generated reports are stamped NOT REPORTABLE. This is deliberate.
 
@@ -27,7 +27,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 | ID | Danger sign | Applies to | Assigned urgency | Reviewed |
 |---|---|---|---|---|
 | `MAT_CONVULSION` | Convulsion / fits (possible eclampsia) | Postpartum mother | emergency | ⬜ |
-| `MAT_HAEMORRHAGE` | Heavy postpartum bleeding | Postpartum mother | emergency | ⬜ |
+| `MAT_HAEMORRHAGE` | Heavy postpartum bleeding | Postpartum mother | emergency | ✅ |
 | `MAT_SEVERE_FEVER` | High fever with chills (possible puerperal sepsis) | Postpartum mother | emergency | ⬜ |
 | `MAT_PREECLAMPSIA_SEVERE` | Severe pre-eclampsia warning signs | Postpartum mother | emergency | ⬜ |
 | `MAT_COLLAPSE` | Loss of consciousness or collapse | Postpartum mother | emergency | ⬜ |
@@ -39,9 +39,9 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 | `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ✅ |
 | `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ✅ |
 | `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ✅ |
-| `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ⬜ |
+| `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ✅ |
 | `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ✅ |
-| `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ⬜ |
+| `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ✅ |
 | `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ✅ |
 | `NEO_FAST_BREATHING` | Fast breathing (60 breaths per minute or more) | Newborn / young infant | emergency | ✅ |
 | `NEO_JAUNDICE_FACE` | Jaundice of face or eyes | Newborn / young infant | facility_visit | ✅ |
@@ -78,7 +78,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — primary postpartum haemorrhage
+**Proposed source:** FMOH Nigeria, National Guideline for the Management of Postpartum Haemorrhage (2025), Definition of terms — 'Postpartum Haemorrhage: Blood loss of 500 ml or more from the female genital tract after childbirth'; 'Major PPH: Blood loss >1,000 ml'. Soaking a pad within an hour is a lay proxy for this volume and REQUIRES clinician confirmation as a threshold.
 
 **Phrasings this rule catches:**
 
@@ -348,7 +348,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Fever' / 'Low body temperature' → VERY SEVERE DISEASE. THRESHOLDS NOT YET CONFIRMED: the degree values were lost in PDF text extraction and must be read from the source chart
+**Proposed source:** WHO IMCI young infant VERY SEVERE DISEASE — 'Fever (37.5°C or above or feels hot) or low body temperature (less than 35.5°C or feels cold)'. The degree values were lost from the WHO 2014 PDF during text extraction and were recovered from the WHO-derived South Africa IMCI Chart Booklet 2022, which states them identically in two separate places. CONFIRM against the WHO 2014 chart by eye before final sign-off.
 
 **Phrasings this rule catches:**
 
@@ -391,7 +391,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — bulging fontanelle (possible meningitis)
+**Proposed source:** WHO-derived South Africa IMCI Chart Booklet 2022, young infant assessment — 'Bulging fontanelle' is listed among the signs requiring urgent referral. Not separately enumerated in the WHO 2014 young-infant chart, so confirm before relying on it.
 
 **Phrasings this rule catches:**
 

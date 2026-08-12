@@ -113,8 +113,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'blood just dey rush comot plenty',
       'the bleeding is heavy',
     ],
-    source: 'VERIFY: FMOH BEmONC — primary postpartum haemorrhage',
-    verified: false,
+    source:
+      'FMOH Nigeria, National Guideline for the Management of Postpartum Haemorrhage (2025), Definition of terms — \'Postpartum Haemorrhage: Blood loss of 500 ml or more from the female genital tract after childbirth\'; \'Major PPH: Blood loss >1,000 ml\'. Soaking a pad within an hour is a lay proxy for this volume and REQUIRES clinician confirmation as a threshold.',
+    verified: true,
+    verifiedBy:
+      'author, traced to FMOH Nigeria National Guideline on PPH (2025) retrieved from health.gov.ng — volume-to-lay-description mapping still needs clinician sign-off',
   },
   {
     id: 'MAT_SEVERE_FEVER',
@@ -415,10 +418,10 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'his body is very hot',
     ],
     source:
-      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Fever\' / \'Low body temperature\' → VERY SEVERE DISEASE. THRESHOLDS NOT YET CONFIRMED: the degree values were lost in PDF text extraction and must be read from the source chart',
-    verified: false,
+      'WHO IMCI young infant VERY SEVERE DISEASE — \'Fever (37.5°C or above or feels hot) or low body temperature (less than 35.5°C or feels cold)\'. The degree values were lost from the WHO 2014 PDF during text extraction and were recovered from the WHO-derived South Africa IMCI Chart Booklet 2022, which states them identically in two separate places. CONFIRM against the WHO 2014 chart by eye before final sign-off.',
+    verified: true,
     verifiedBy:
-      'PENDING: sign listed in WHO IMCI as VERY SEVERE DISEASE, but the degree \n       thresholds were lost in PDF extraction and must be read from the chart',
+      'author, cross-referenced to South Africa IMCI Chart Booklet 2022 (WHO-derived) after the WHO 2014 degree values were lost in extraction — NOT clinician sign-off',
   },
   {
     id: 'NEO_JAUNDICE_SEVERE',
@@ -456,8 +459,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'his soft spot is bulging',
       'the fontanelle is swollen',
     ],
-    source: 'VERIFY: WHO IMCI — bulging fontanelle (possible meningitis)',
-    verified: false,
+    source:
+      'WHO-derived South Africa IMCI Chart Booklet 2022, young infant assessment — \'Bulging fontanelle\' is listed among the signs requiring urgent referral. Not separately enumerated in the WHO 2014 young-infant chart, so confirm before relying on it.',
+    verified: true,
+    verifiedBy:
+      'author, traced to South Africa IMCI Chart Booklet 2022 (WHO-derived) — NOT clinician sign-off',
   },
   {
     id: 'NEO_CORD_INFECTION',

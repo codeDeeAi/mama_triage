@@ -1,6 +1,12 @@
 import { isStatusCallback, parseInbound } from '../../src/whatsapp/parseInbound';
 import { splitMessage, WhatsAppClient, WhatsAppApiError } from '../../src/whatsapp/client';
 import { PREFERRED_BUBBLE_LENGTH } from '../../src/whatsapp/types';
+import {
+  MetaCloudTransport,
+  TextOnlyTransport,
+  assertTransportUsable,
+  renderOptionsAsText,
+} from '../../src/whatsapp/transport';
 
 function envelope(messages: unknown[]) {
   return {
@@ -303,5 +309,69 @@ describe('WhatsAppClient.sendButtons', () => {
       ]),
     ).rejects.toThrow(/exceeds 20 characters/);
     expect(f.callCount).toBe(0);
+  });
+});
+
+describe('MessageTransport', () => {
+  it('reports Meta Cloud API capabilities', () => {
+    const t = new MetaCloudTransport({} as never);
+    expect(t.capabilities).toEqual({
+      inbound: true,
+      interactiveButtons: true,
+      provider: 'meta-cloud-api',
+    });
+  });
+
+  it('delegates sends to the underlying client', async () => {
+    const calls: string[] = [];
+    const t = new MetaCloudTransport({
+      async sendText(_to: string, body: string) { calls.push(`text:${body}`); return []; },
+      async sendButtons(_to: string, body: string) { calls.push(`buttons:${body}`); return {}; },
+    } as never);
+
+    await t.sendText('234801', 'hello');
+    await t.sendOptions('234801', 'choose', [{ id: 'A', title: 'One' }]);
+    expect(calls).toEqual(['text:hello', 'buttons:choose']);
+  });
+
+  it('renders options as numbered text for transports without buttons', () => {
+    const out = renderOptionsAsText('Who is this for?', [
+      { id: 'M', title: 'For me' },
+      { id: 'B', title: 'For my baby' },
+    ]);
+    expect(out).toContain('1. For me');
+    expect(out).toContain('2. For my baby');
+    expect(out).toContain('Reply with a number (1-2)');
+  });
+
+  it('a text-only transport still delivers the choice', async () => {
+    const sent: string[] = [];
+    const t = new TextOnlyTransport(async (_to, body) => { sent.push(body); }, {
+      provider: 'example-cpaas',
+      inbound: true,
+    });
+
+    await t.sendOptions('234801', 'Do you agree?', [
+      { id: 'Y', title: 'Yes, continue' },
+      { id: 'N', title: 'No, thank you' },
+    ]);
+
+    expect(t.capabilities.interactiveButtons).toBe(false);
+    expect(sent[0]).toContain('1. Yes, continue');
+  });
+
+  it('refuses to start on a send-only provider', () => {
+    // A provider without inbound webhooks can deliver a reply but never hear a symptom.
+    // Starting anyway would look like a working service while dropping every message.
+    const sendOnly = new TextOnlyTransport(async () => undefined, {
+      provider: 'send-only-gateway',
+      inbound: false,
+    });
+    expect(() => assertTransportUsable(sendOnly)).toThrow(/does not support inbound/i);
+    expect(() => assertTransportUsable(sendOnly)).toThrow(/two-way messaging/i);
+  });
+
+  it('accepts a transport that supports inbound', () => {
+    expect(() => assertTransportUsable(new MetaCloudTransport({} as never))).not.toThrow();
   });
 });

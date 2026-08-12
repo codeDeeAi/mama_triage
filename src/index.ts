@@ -13,6 +13,7 @@ import { MessageRepository } from './db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from './db/repositories/event.repo';
 import { OutcomeRepository } from './db/repositories/outcome.repo';
 import { WhatsAppClient } from './whatsapp/client';
+import { MetaCloudTransport, assertTransportUsable } from './whatsapp/transport';
 import { TaskQueue } from './http/queue';
 import { createApp } from './http/app';
 import { createMessageHandler } from './orchestrator/handler';
@@ -91,10 +92,16 @@ async function main(): Promise<void> {
     );
   }
 
-  const whatsapp = new WhatsAppClient({
-    token: config.whatsapp.token,
-    phoneNumberId: config.whatsapp.phoneNumberId,
-  });
+  const whatsapp = new MetaCloudTransport(
+    new WhatsAppClient({
+      token: config.whatsapp.token,
+      phoneNumberId: config.whatsapp.phoneNumberId,
+    }),
+  );
+  // Fails fast on a send-only provider rather than silently dropping every inbound
+  // message while appearing to work.
+  assertTransportUsable(whatsapp);
+  logger.info({ transport: whatsapp.capabilities }, 'messaging transport ready');
 
   const queue = new TaskQueue({
     concurrency: 4,

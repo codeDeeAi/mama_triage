@@ -48,7 +48,7 @@ class FakeWhatsApp {
     this.texts.push({ to, body });
     return [{ waMessageId: `wamid.out.${this.texts.length}` }];
   }
-  async sendButtons(to: string, body: string, buttons: ReadonlyArray<{ id: string; title: string }>) {
+  async sendOptions(to: string, body: string, buttons: ReadonlyArray<{ id: string; title: string }>) {
     this.buttons.push({ to, body, ids: buttons.map((b) => b.id) });
     return { waMessageId: `wamid.btn.${this.buttons.length}` };
   }

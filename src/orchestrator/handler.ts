@@ -17,7 +17,7 @@ import { detectDistress } from '../safety/distress';
 import { evaluateRedFlags } from '../safety/redFlags';
 import { hashPhone } from '../privacy/hashPhone';
 import type { InboundMessage } from '../whatsapp/types';
-import type { WhatsAppClient } from '../whatsapp/client';
+import type { MessageTransport } from '../whatsapp/transport';
 import type { SessionRepository, SessionRow } from '../db/repositories/session.repo';
 import type { MessageRepository } from '../db/repositories/message.repo';
 import type { AuditRepository } from '../db/repositories/event.repo';
@@ -31,7 +31,7 @@ export interface HandlerDeps {
   sessions: SessionRepository;
   messages: MessageRepository;
   audit: AuditRepository;
-  whatsapp: WhatsAppClient;
+  whatsapp: MessageTransport;
   logger: Logger;
   pepper: string;
   sessionTtlMinutes: number;
@@ -151,7 +151,7 @@ export function createMessageHandler(deps: HandlerDeps) {
     switch (session.state) {
       case 'new':
         await deps.sessions.setState(session.id, 'awaiting_consent');
-        await deps.whatsapp.sendButtons(msg.from, CONSENT_COPY[session.language], [
+        await deps.whatsapp.sendOptions(msg.from, CONSENT_COPY[session.language], [
           { id: CONSENT_ACCEPT_ID, title: 'Yes, continue' },
           { id: CONSENT_DECLINE_ID, title: 'No, thank you' },
         ]);
@@ -352,16 +352,20 @@ async function handleConsent(
   receivedAt: number,
 ): Promise<void> {
   const said = msg.text.trim().toLowerCase();
+  // '1'/'2' are accepted because a transport without interactive buttons renders the
+  // options as a numbered list (see renderOptionsAsText). The numbering there and the
+  // matching here must stay in step.
   const accepted =
     msg.replyId === CONSENT_ACCEPT_ID ||
-    /^(yes|y|ok|okay|agree|i agree|continue|yes continue|gree|i gree)$/i.test(said);
+    /^(yes|y|ok|okay|agree|i agree|continue|yes continue|gree|i gree|1)$/i.test(said);
   const declined =
-    msg.replyId === CONSENT_DECLINE_ID || /^(no|n|no thanks|no thank you|stop)$/i.test(said);
+    msg.replyId === CONSENT_DECLINE_ID ||
+    /^(no|n|no thanks|no thank you|stop|2)$/i.test(said);
 
   if (accepted) {
     await deps.sessions.recordConsent(session.id);
     await deps.audit.record('CONSENT_GIVEN', {}, session.id);
-    await deps.whatsapp.sendButtons(msg.from, PATHWAY_PROMPT[session.language], [
+    await deps.whatsapp.sendOptions(msg.from, PATHWAY_PROMPT[session.language], [
       { id: PATHWAY_MOTHER_ID, title: 'For me (mother)' },
       { id: PATHWAY_BABY_ID, title: 'For my baby' },
     ]);
@@ -397,9 +401,13 @@ async function handlePathwayChoice(
 ): Promise<void> {
   const said = msg.text.trim().toLowerCase();
   const maternal =
-    msg.replyId === PATHWAY_MOTHER_ID || /\b(me|mother|mama|myself|my ?self)\b/i.test(said);
+    msg.replyId === PATHWAY_MOTHER_ID ||
+    /\b(me|mother|mama|myself|my ?self)\b/i.test(said) ||
+    said === '1';
   const neonatal =
-    msg.replyId === PATHWAY_BABY_ID || /\b(baby|pikin|child|newborn|my baby)\b/i.test(said);
+    msg.replyId === PATHWAY_BABY_ID ||
+    /\b(baby|pikin|child|newborn|my baby)\b/i.test(said) ||
+    said === '2';
 
   // Check neonatal first: "for my baby" contains neither ambiguity nor "me" as a word,
   // but a mother writing "my baby and me" should be routed to the baby.
