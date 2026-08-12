@@ -15,19 +15,32 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 ## Status
 
+**708 tests.** Typecheck, build and Docker image all clean.
+
 | Component | State |
 |---|---|
-| Repo scaffold, TypeScript, Jest | ✅ done |
-| Database schema (migrations 001–006) | ✅ done — up/down round trip verified against Postgres 16.14 |
-| Safety layer (red flags, negation, ratchet, distress, fallback) | ✅ done — 100% coverage, 162 tests |
-| Configuration with fail-fast validation | ✅ done |
-| WhatsApp webhook + session persistence | ⬜ next |
-| RAG pipeline (chunk → embed → Chroma) | ⬜ |
-| LLM triage with structured output | ⬜ |
-| Orchestrator state machine | ⬜ |
-| Evaluation harness | ⬜ |
+| Repo scaffold, TypeScript, Jest | ✅ |
+| Database schema (migrations 001–006) | ✅ up/down round trip verified against Postgres 16.14 |
+| Safety layer (red flags, negation, ratchet, distress, fallback) | ✅ **100% coverage** |
+| Configuration with fail-fast validation | ✅ |
+| WhatsApp webhook, privacy, consent flow | ✅ signature verification, ACK-first, idempotent |
+| RAG pipeline (chunk → embed → retrieve) | ✅ runs on a **placeholder corpus** |
+| LLM triage with structured output + second-pass check | ✅ |
+| Assessment state machine + renderer | ✅ full conversation end to end |
+| Evaluation harness (Objective 4) | ✅ metrics, runner, report generator |
+| Deployment (Dockerfile, CI, `/admin/simulate`) | ✅ image builds and runs |
+
+### Blocked on inputs, not code
+
+| Blocker | Effect |
+|---|---|
+| **Clinical reviewer sign-off** | Every red-flag rule is `verified: false`. `assertRegisterVerified()` throws, and reports are stamped NOT REPORTABLE. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
+| **WHO IMCI / FMOH BEmONC documents** | RAG indexes a clearly-marked placeholder. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
+| **Scenario bank** | 7 committed, ~80 planned, each needing adjudication by two reviewers. |
+| **Meta Business approval** | Needed for a live number. `/admin/simulate` keeps development unblocked meanwhile. |
 
 Full build plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
+Hazards and residual risk: [`docs/safety/clinical-safety-case.md`](docs/safety/clinical-safety-case.md).
 
 ---
 
@@ -85,6 +98,21 @@ npm test
 | `npm run db:up` / `db:down` | Local Postgres lifecycle |
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:rollback` | Roll back one migration |
+| `npm run kb:ingest` | Rebuild the knowledge index from `knowledge/sources/` |
+| `npm run docs:register` | Regenerate the clinician sign-off pack from the live register |
+| `npm run eval:smoke` | **CI safety gate** — see below |
+
+### The safety gate
+
+```bash
+npm run eval:smoke
+```
+
+Runs the `smoke` scenarios against a model **stubbed to always answer `self_care`**, and
+fails if any emergency is missed. Anything still classified correctly was caught by the
+deterministic layer alone. It needs no API keys, so it runs on every pull request — and it
+is the single most valuable piece of automation here: it proves on every commit that the
+safety floor holds without the model.
 
 ---
 

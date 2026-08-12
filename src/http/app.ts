@@ -15,6 +15,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import { verifySignature } from './middleware/verifySignature';
 import { createWebhookRouter, type WebhookDeps } from './webhook.routes';
+import { createAdminRouter, type AdminDeps } from './admin.routes';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { Logger } from '../telemetry/logger';
@@ -24,6 +25,8 @@ export interface AppDeps extends WebhookDeps {
   db: Db;
   audit: AuditRepository;
   version?: string;
+  /** Admin/debug routes. Omit to disable them entirely. */
+  admin?: Omit<AdminDeps, 'logger'>;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -63,6 +66,10 @@ export function createApp(deps: AppDeps): Express {
       checks: { database: dbOk ? 'ok' : 'unreachable' },
     });
   });
+
+  if (deps.admin) {
+    app.use(createAdminRouter({ ...deps.admin, logger: deps.logger }));
+  }
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'not found' });

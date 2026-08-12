@@ -45,9 +45,20 @@ export const ScenarioSchema = z
       .object({
         /** Any of these red-flag IDs firing counts as correct detection. */
         red_flags_any_of: z.array(z.string()).optional(),
-        /** Phrases that must appear somewhere in the system's replies. */
+        /**
+         * Phrases that must appear somewhere in the system's replies.
+         *
+         * Plain substring match, case-insensitive. Avoid phrases the standing disclaimer
+         * already contains ("health facility") — those pass trivially on every reply.
+         */
         must_mention: z.array(z.string()).optional(),
-        /** Phrases that must NOT appear — e.g. "wait" on an emergency case. */
+        /**
+         * Phrases that must NOT appear.
+         *
+         * Plain substring match, so forbid the harmful *phrasing* rather than a bare
+         * word: "wait" alone fails a correct emergency reply, because the advice
+         * legitimately reads "do not wait to see if it improves". Prefer "wait and see".
+         */
         must_not_mention: z.array(z.string()).optional(),
       })
       .optional(),

@@ -23,6 +23,26 @@ describe('register integrity', () => {
     }
   });
 
+  it('gives every rule reviewer-readable examples', () => {
+    for (const rule of RED_FLAGS) {
+      expect(rule.examples.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('every documented example actually fires its own rule', () => {
+    // The examples are what the clinical reviewer signs off against, so they must not
+    // drift from the patterns. A reviewer approving a phrasing the system does not
+    // actually catch is worse than no review at all.
+    const failures: string[] = [];
+    for (const rule of RED_FLAGS) {
+      for (const example of rule.examples) {
+        const fired = matchLexical(example, rule.pathway).map((h) => h.id);
+        if (!fired.includes(rule.id)) failures.push(`${rule.id}: "${example}"`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
   it('gives every rule a traceable source and at least one pattern', () => {
     for (const rule of RED_FLAGS) {
       expect(rule.source.length).toBeGreaterThan(0);

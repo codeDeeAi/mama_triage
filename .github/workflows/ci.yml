@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mama
+          POSTGRES_PASSWORD: mama
+          POSTGRES_DB: mama_triage
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U mama -d mama_triage"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://mama:mama@localhost:5433/mama_triage
+      DATABASE_URL: postgresql://mama:mama@localhost:5433/mama_triage
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Tests
+        run: npm test -- --coverage
+
+      # The gate that matters. Runs the smoke scenarios against a model stubbed to always
+      # answer self_care, and fails if any emergency is missed — proving the deterministic
+      # safety layer catches them unaided. Needs no API keys, so it runs on every PR.
+      - name: Safety gate — deterministic layer must catch every smoke emergency
+        run: npm run eval:smoke
+
+      - name: Build image
+        run: docker build -t mama-triage:ci .
+
+      - name: Reviewer document is up to date with the register
+        run: |
+          npm run docs:register
+          if ! git diff --quiet -- docs/requirements/red-flag-register.md; then
+            echo "::error::docs/requirements/red-flag-register.md is stale."
+            echo "The document a clinician signs must match the register that runs."
+            echo "Run 'npm run docs:register' and commit the result."
+            git --no-pager diff -- docs/requirements/red-flag-register.md
+            exit 1
+          fi

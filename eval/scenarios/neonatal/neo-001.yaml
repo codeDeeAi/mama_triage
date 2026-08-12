@@ -19,8 +19,13 @@ expect:
     - NEO_LETHARGY
   must_mention:
     - health facility
+  # must_not_mention is a plain substring check, so forbid the harmful *phrasing*, not a
+  # bare word. "wait" alone fails here: correct emergency advice says "do not wait to see
+  # if it improves".
   must_not_mention:
-    - wait
+    - wait and see
+    - wait until
+    - see how it goes
     - tomorrow
 notes: >
   Classic young-infant sepsis presentation: non-specific, and the combination of poor

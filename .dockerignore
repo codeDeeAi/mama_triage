@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.github
+test
+eval/out
+knowledge/index
+knowledge/sources/*.pdf
+docs
+*.md
+!knowledge/SOURCES.md
+.env
+.env.*
+.DS_Store

@@ -36,6 +36,14 @@ export interface RedFlagRule {
   patterns: RegExp[];
   /** Slot clause: if any listed slot holds the listed value, the rule fires. */
   slot?: Partial<Record<keyof Slots, string | number>>;
+  /**
+   * Representative phrasings this rule is meant to catch, in plain language.
+   *
+   * These are what the clinical reviewer actually reads — regular expressions are not a
+   * reviewable artefact. A test asserts every example still fires its own rule, so the
+   * documentation cannot drift away from the behaviour it describes.
+   */
+  examples: string[];
   /** Guideline section this rule is traced to. Carries a VERIFY marker until signed off. */
   source: string;
   /** Set true only after clinical reviewer sign-off. */
@@ -64,6 +72,12 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /body\s+dey\s+shake/i,
       /\bshaking\s+(?:all\s+over|her\s+body)/i,
     ],
+    examples: [
+      'she is having convulsions',
+      'I had a fit this morning',
+      'her body dey shake',
+      'my wife started fitting',
+    ],
     source: 'VERIFY: FMOH BEmONC — eclampsia / convulsions in pregnancy and postpartum',
     verified: false,
   },
@@ -82,6 +96,12 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /\bhaemorrhag|\bhemorrhag/i,
       /passing\s+(?:big\s+)?clots?/i,
     ],
+    examples: [
+      'I am soaking a pad every hour',
+      'bleeding too much since morning',
+      'blood dey rush comot',
+      'the bleeding is heavy',
+    ],
     source: 'VERIFY: FMOH BEmONC — primary postpartum haemorrhage',
     verified: false,
   },
@@ -96,6 +116,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /(?:chills?|shivering|rigors?)[^.]{0,25}fever/i,
       /body\s+dey\s+hot[^.]{0,20}(?:shake|shiver|cold)/i,
       /\bhigh\s+(?:fever|temperature)\b/i,
+    ],
+    examples: [
+      'fever with chills and shivering',
+      'I have a high fever',
+      'body dey hot and cold dey catch me',
     ],
     source: 'VERIFY: FMOH BEmONC — puerperal sepsis danger signs',
     verified: false,
@@ -121,6 +146,12 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /(?:swelling|swollen)[^.]{0,20}(?:face|hands?)/i,
       /(?:face|hands?)[^.]{0,20}(?:swelling|swollen|swell)/i,
     ],
+    examples: [
+      'I have a severe headache',
+      'my vision is blurred',
+      'pain in my upper stomach',
+      'my face is swollen',
+    ],
     source: 'VERIFY: FMOH BEmONC — severe pre-eclampsia warning signs',
     verified: false,
   },
@@ -137,6 +168,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /\bnot\s+respond(?:ing|ive)/i,
       /she\s+no\s+dey\s+answer/i,
     ],
+    examples: [
+      'she is unconscious',
+      'she fainted this morning',
+      'she no dey answer',
+    ],
     source: 'VERIFY: FMOH BEmONC — shock / loss of consciousness',
     verified: false,
   },
@@ -150,6 +186,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /(?:short|shortness)\s+of\s+breath/i,
       /can'?t\s+breath/i,
       /breath\s+dey\s+(?:hard|catch)/i,
+    ],
+    examples: [
+      'I am having difficulty breathing',
+      'I can\'t breathe properly',
+      'breath dey hard',
     ],
     source: 'VERIFY: FMOH BEmONC — respiratory distress',
     verified: false,
@@ -166,6 +207,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /wound\s+dey\s+(?:smell|pain|swell)/i,
       /stitches?\s+(?:open|burst)/i,
     ],
+    examples: [
+      'my stitches have pus and a bad smell',
+      'the caesarean wound is red and swollen',
+      'wound dey smell',
+    ],
     source: 'VERIFY: FMOH BEmONC — wound infection',
     verified: false,
   },
@@ -177,6 +223,10 @@ const MATERNAL_RULES: RedFlagRule[] = [
     patterns: [
       /(?:discharge|lochia|blood)[^.]{0,25}(?:smell|odour|odor|stink)/i,
       /(?:smelly|foul)[^.]{0,15}(?:discharge|lochia)/i,
+    ],
+    examples: [
+      'the discharge has a bad smell',
+      'smelly discharge since yesterday',
     ],
     source: 'VERIFY: FMOH BEmONC — endometritis',
     verified: false,
@@ -192,6 +242,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /(?:lump|abscess)[^.]{0,20}breast/i,
       /breast\s+dey\s+(?:pain|hot|hard)/i,
       /\bmastitis\b/i,
+    ],
+    examples: [
+      'my breast is red and hot with a hard lump',
+      'breast dey pain and hot',
+      'I think I have mastitis',
     ],
     source: 'VERIFY: FMOH BEmONC — mastitis / breast abscess',
     verified: false,
@@ -220,6 +275,13 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /stopped\s+(?:feeding|sucking|breastfeeding|eating)/i,
       /no\s+fit\s+(?:suck|chop)/i,
     ],
+    examples: [
+      'the baby is not feeding',
+      'he has not fed at all today',
+      'he has not been sucking since morning',
+      'pikin no dey chop',
+      'he refuses the breast',
+    ],
     source: 'VERIFY: WHO IMCI — young infant general danger signs (unable to feed)',
     verified: false,
   },
@@ -238,6 +300,12 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:gasp|struggl)(?:ing|s|ed)?[^.]{0,15}(?:breath|air)/i,
       /chest[^.]{0,15}(?:indrawing|pulling in|sinking)/i,
       /breath\s+dey\s+(?:catch|hard)/i,
+    ],
+    examples: [
+      'the baby stopped breathing',
+      'his lips are blue',
+      'there is chest indrawing',
+      'he is grunting',
     ],
     source: 'VERIFY: WHO IMCI — severe respiratory distress in the young infant',
     verified: false,
@@ -260,6 +328,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:body|hand|leg)[^.]{0,15}(?:jerk|twitch|stiff)/i,
       /pikin\s+dey\s+shake/i,
     ],
+    examples: [
+      'the baby is having convulsions',
+      'the baby had a fit',
+      'pikin dey shake',
+    ],
     source: 'VERIFY: WHO IMCI — convulsions (general danger sign)',
     verified: false,
   },
@@ -278,6 +351,12 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:no|never)\s+dey\s+(?:wake|move|cry)/i,
       /(?:difficult|hard)\s+to\s+wake/i,
       /won'?t\s+wake/i,
+    ],
+    examples: [
+      'baby is very sleepy and floppy',
+      'he is difficult to wake',
+      'e no dey wake at all',
+      'he is not moving',
     ],
     source: 'VERIFY: WHO IMCI — lethargy / unconsciousness (general danger sign)',
     verified: false,
@@ -298,6 +377,12 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /\bhypothermi/i,
       /temperature[^.]{0,20}(?:3[89]|4[01])(?:\.\d)?\s*(?:°|deg|c\b)/i,
     ],
+    examples: [
+      'the baby is cold to touch',
+      'he feels cold',
+      'baby is hot to touch',
+      'his body is very hot',
+    ],
     source: 'VERIFY: WHO IMCI — fever or low body temperature in the young infant',
     verified: false,
   },
@@ -313,6 +398,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /whole\s+body[^.]{0,15}yellow/i,
       /body\s+don\s+yellow/i,
     ],
+    examples: [
+      'yellow has reached his palms',
+      'his palms are yellow',
+      'body don yellow',
+    ],
     source: 'VERIFY: WHO IMCI — severe jaundice (palms and soles)',
     verified: false,
   },
@@ -324,6 +414,10 @@ const NEONATAL_RULES: RedFlagRule[] = [
     patterns: [
       /(?:bulging|swollen|raised)[^.]{0,20}(?:fontanelle|soft\s+spot)/i,
       /(?:fontanelle|soft\s+spot)[^.]{0,20}(?:bulging|swollen|raised|pushing|big)/i,
+    ],
+    examples: [
+      'his soft spot is bulging',
+      'the fontanelle is swollen',
     ],
     source: 'VERIFY: WHO IMCI — bulging fontanelle (possible meningitis)',
     verified: false,
@@ -338,6 +432,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:cord|navel|umbilic)[^.]{0,30}(?:red|pus|discharge|smell|swollen|bleeding)/i,
       /belly\s+button[^.]{0,25}(?:red|pus|smell)/i,
     ],
+    examples: [
+      'the cord is red and has pus',
+      'the navel is swollen and smells',
+      'belly button don red',
+    ],
     source: 'VERIFY: WHO IMCI — umbilical infection',
     verified: false,
   },
@@ -351,6 +450,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:fast|rapid|quick)[^.]{0,15}breathing/i,
       /breathing[^.]{0,15}(?:fast|quick|rapid)/i,
       /dey\s+breathe\s+fast/i,
+    ],
+    examples: [
+      'he is breathing very fast',
+      'his breathing is fast',
+      'e dey breathe fast',
     ],
     source: 'VERIFY: WHO IMCI — fast breathing threshold by age',
     verified: false,
@@ -367,6 +471,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /eye\s+don\s+yellow/i,
       /\bjaundice\b/i,
     ],
+    examples: [
+      'his eyes are yellow',
+      'the baby has jaundice on his face',
+      'eye don yellow',
+    ],
     source: 'VERIFY: WHO IMCI — jaundice assessment',
     verified: false,
   },
@@ -380,6 +489,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:feeding|sucking|breastfeeding)[^.]{0,20}(?:less|poorly|not well|reduced)/i,
       /(?:not\s+feeding\s+well|feeding\s+badly)/i,
       /no\s+dey\s+chop\s+well/i,
+    ],
+    examples: [
+      'he is feeding less than usual',
+      'the baby is not feeding well',
+      'no dey chop well',
     ],
     source: 'VERIFY: WHO IMCI — feeding problem',
     verified: false,

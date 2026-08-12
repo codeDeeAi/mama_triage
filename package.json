@@ -19,12 +19,13 @@
     "test:integration": "jest test/integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint . --ext .ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "node-pg-migrate up -m migrations",
     "db:rollback": "node-pg-migrate down -m migrations",
-    "kb:ingest": "node dist/rag/ingest.js"
+    "kb:ingest": "npm run build && node dist/rag/ingest.js",
+    "docs:register": "npm run build && node dist/safety/reviewDoc.js",
+    "eval:smoke": "npm run build && node dist/eval/smoke.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

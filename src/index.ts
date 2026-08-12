@@ -53,8 +53,10 @@ async function main(): Promise<void> {
     : join(config.rag.chromaPath, 'index.json');
 
   let assessment: Parameters<typeof createMessageHandler>[0]['assessment'];
+  let knowledgeIndexSize: number | null = null;
   try {
     const store = MemoryVectorStore.fromFile(indexPath);
+    knowledgeIndexSize = store.size();
     const embedder = new VoyageEmbedder({
       apiKey: config.rag.voyageApiKey,
       model: config.rag.embeddingModel,
@@ -120,6 +122,12 @@ async function main(): Promise<void> {
     queue,
     logger,
     handleMessage,
+    admin: {
+      isProduction: config.isProduction,
+      ...(process.env.ADMIN_TOKEN ? { adminToken: process.env.ADMIN_TOKEN } : {}),
+      ...(assessment ? { assessment, retriever: assessment.retriever } : {}),
+      ...(knowledgeIndexSize !== null ? { indexSize: () => knowledgeIndexSize as number } : {}),
+    },
   });
 
   const server = app.listen(config.port, () => {
