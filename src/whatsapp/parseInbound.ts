@@ -91,6 +91,7 @@ export function parseInbound(payload: unknown): InboundMessage[] {
 
         if (raw.type === 'text' && 'text' in raw) {
           out.push({
+            channel: 'whatsapp',
             waMessageId: raw.id,
             from: raw.from,
             text: raw.text.body,
@@ -105,6 +106,7 @@ export function parseInbound(payload: unknown): InboundMessage[] {
           const i = raw.interactive;
           const reply = i.type === 'button_reply' ? i.button_reply : i.list_reply;
           out.push({
+            channel: 'whatsapp',
             waMessageId: raw.id,
             from: raw.from,
             text: reply.title,
@@ -120,6 +122,7 @@ export function parseInbound(payload: unknown): InboundMessage[] {
         // reply "I can only read text messages" rather than silently ignoring a mother
         // who sent a photo of her baby.
         out.push({
+          channel: 'whatsapp' as const,
           waMessageId: raw.id,
           from: raw.from,
           text: '',

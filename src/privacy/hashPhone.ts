@@ -60,6 +60,39 @@ export function hashPhone(phone: string, pepper: string): string {
 }
 
 /**
+ * Channels a mother can reach the system on.
+ *
+ * Kept here because identity hashing is channel-dependent: a Telegram chat ID is not a
+ * phone number and must not go through phone normalisation.
+ */
+export type Channel = 'whatsapp' | 'telegram';
+
+/**
+ * Hash a caller's identity for storage.
+ *
+ * Two things this gets right that a bare `hashPhone` did not:
+ *
+ *   1. **Telegram chat IDs are not phone numbers.** Running one through
+ *      `normalisePhone` would apply Nigerian mobile rules to an unrelated integer — an
+ *      11-digit chat ID beginning with 0 would silently have "234" prepended.
+ *   2. **The channel is part of the identity.** Without it, a Telegram chat ID that
+ *      happened to equal a normalised phone number would collide into one session,
+ *      merging two different people's clinical history.
+ */
+export function hashIdentity(channel: Channel, identifier: string, pepper: string): string {
+  if (!pepper || pepper.length < 32) {
+    throw new Error('identity hash pepper is missing or too short');
+  }
+  const normalised =
+    channel === 'whatsapp' ? normalisePhone(identifier) : identifier.trim();
+
+  if (normalised.length === 0) {
+    throw new Error('cannot hash an empty identifier');
+  }
+  return createHmac('sha256', pepper).update(`${channel}:${normalised}`).digest('hex');
+}
+
+/**
  * Constant-time comparison of two hashes.
  *
  * Used where a hash is compared against a stored value; avoids leaking information

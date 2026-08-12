@@ -15,13 +15,14 @@
 
 import { detectDistress } from '../safety/distress';
 import { evaluateRedFlags } from '../safety/redFlags';
-import { hashPhone } from '../privacy/hashPhone';
+import { hashIdentity } from '../privacy/hashPhone';
 import type { InboundMessage } from '../whatsapp/types';
 import type { MessageTransport } from '../whatsapp/transport';
 import type { SessionRepository, SessionRow } from '../db/repositories/session.repo';
 import type { MessageRepository } from '../db/repositories/message.repo';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { OutcomeRepository } from '../db/repositories/outcome.repo';
+import type { RegistrationRepository } from '../db/repositories/registration.repo';
 import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
 import { buildEmergencyMessage } from './render';
@@ -42,6 +43,8 @@ export interface HandlerDeps {
    */
   assessment?: AssessmentDeps;
   outcomes?: OutcomeRepository;
+  /** Optional: links a Telegram deep-link registration to its chat on first contact. */
+  registrations?: RegistrationRepository;
   /** How many prior messages to include as conversation context. */
   transcriptWindow?: number;
 }
@@ -110,7 +113,19 @@ export function detectLanguageHeuristic(text: string): Language {
 export function createMessageHandler(deps: HandlerDeps) {
   return async function handleMessage(msg: InboundMessage): Promise<void> {
     const receivedAt = Date.now();
-    const waIdHash = hashPhone(msg.from, deps.pepper);
+    const waIdHash = hashIdentity(msg.channel, msg.from, deps.pepper);
+
+    // A Telegram registration holds no identifier until this moment: the deep-link token
+    // is what binds her chat to the name she gave on the web form. Single-use, so a
+    // forwarded link cannot attach someone else's chat to her registration.
+    const startPayload = (msg as { startPayload?: string }).startPayload;
+    if (startPayload && deps.registrations) {
+      const linked = await deps.registrations.linkTelegram(startPayload, waIdHash);
+      deps.logger.info(
+        { linked: Boolean(linked) },
+        linked ? 'registration linked to chat' : 'registration token unknown or already used',
+      );
+    }
 
     const { session } = await deps.sessions.findOrCreate(
       waIdHash,

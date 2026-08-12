@@ -14,7 +14,7 @@ import { SessionRepository } from '../../src/db/repositories/session.repo';
 import { MessageRepository } from '../../src/db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from '../../src/db/repositories/event.repo';
 import { createMessageHandler, CONSENT_ACCEPT_ID, CONSENT_DECLINE_ID, PATHWAY_BABY_ID } from '../../src/orchestrator/handler';
-import { hashPhone } from '../../src/privacy/hashPhone';
+import { hashIdentity } from '../../src/privacy/hashPhone';
 import type { InboundMessage } from '../../src/whatsapp/types';
 
 const DATABASE_URL =
@@ -98,6 +98,7 @@ function ctx(): Ctx {
   ): Promise<void> => {
     n += 1;
     await handle({
+      channel: 'whatsapp',
       waMessageId: `wamid.${phone}.${n}`,
       from: phone,
       text,
@@ -108,7 +109,7 @@ function ctx(): Ctx {
     });
   };
 
-  return { send, wa, sessions, audit, phone, waIdHash: hashPhone(phone, PEPPER) };
+  return { send, wa, sessions, audit, phone, waIdHash: hashIdentity('whatsapp', phone, PEPPER) };
 }
 
 async function currentSession(c: Ctx) {

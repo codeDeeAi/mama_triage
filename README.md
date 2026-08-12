@@ -9,7 +9,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 > **Research prototype.** This system does not provide medical diagnoses and is not
 > deployed to real end users. Evaluation is conducted against simulated clinical scenarios
-> with clinical reviewers only, per the scope defined in Chapter 1 §1.4.2.
+> with clinical reviewers only
 
 ---
 
@@ -30,6 +30,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Evaluation harness (Objective 4) | ✅ metrics, runner, report generator |
 | Deployment (Dockerfile, CI, `/admin/simulate`) | ✅ image builds and runs |
 | Web demonstration interface (`/demo`) | ✅ drives the real handler; shows the reasoning |
+| Registration page (`/register`) | ✅ platform choice; phone collected only for WhatsApp |
 | **Telegram channel** | ✅ full two-way, free text, inline buttons — no approval needed |
 
 ### Blocked on inputs, not code
@@ -92,10 +93,17 @@ npm install
 cp .env.example .env          # fill in the secrets — see the contract in that file
 npm run db:up                 # Postgres 16 on localhost:5433
 npm run db:migrate
-npm test
+npm test                      # no secrets or network needed
 ```
 
-`npm test` and `npm run typecheck` need no secrets and no database.
+Then, with only a Telegram bot token in `.env`:
+
+```bash
+npm run telegram:poll         # test on your phone — no public URL needed
+npm start                     # → /register/ and /demo/ on :8080
+```
+
+**Full instructions, including deployment: [`docs/RUNNING.md`](docs/RUNNING.md).**
 
 ### Requirements
 

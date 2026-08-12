@@ -72,6 +72,7 @@ export function parseUpdate(payload: unknown): ParsedUpdate | null {
     return {
       // Telegram has no per-message ID that is unique across chats, so the idempotency
       // key is composed. `update_id` is unique per bot and is what a redelivery repeats.
+      channel: 'telegram',
       waMessageId: `tg.cb.${u.update_id}`,
       from: String(chatId),
       // The button's visible label is not sent back, only callback_data, so the data
@@ -93,6 +94,7 @@ export function parseUpdate(payload: unknown): ParsedUpdate | null {
   // 'unsupported' so the mother is told, rather than silently ignored.
   if (m.text === undefined) {
     return {
+      channel: 'telegram',
       waMessageId: `tg.${u.update_id}`,
       from: String(m.chat.id),
       text: '',
@@ -109,6 +111,7 @@ export function parseUpdate(payload: unknown): ParsedUpdate | null {
   const startPayload = startMatch?.[1];
 
   return {
+    channel: 'telegram',
     waMessageId: `tg.${u.update_id}`,
     from: String(m.chat.id),
     // A bare "/start" is a greeting, not something to feed the safety scan as symptom

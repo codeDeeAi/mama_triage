@@ -12,6 +12,7 @@ import { SessionRepository } from './db/repositories/session.repo';
 import { MessageRepository } from './db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from './db/repositories/event.repo';
 import { OutcomeRepository } from './db/repositories/outcome.repo';
+import { RegistrationRepository } from './db/repositories/registration.repo';
 import { WhatsAppClient } from './whatsapp/client';
 import {
   MetaCloudTransport,
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
   const events = new WebhookEventRepository(db);
   const audit = new AuditRepository(db);
   const outcomes = new OutcomeRepository(db);
+  const registrations = new RegistrationRepository(db);
 
   // The knowledge index is built at image build time and shipped read-only. If it is
   // missing the service still starts, but assessment is disabled rather than silently
@@ -153,6 +155,7 @@ async function main(): Promise<void> {
       messages,
       audit,
       outcomes,
+      registrations,
       whatsapp: transport,
       logger,
       pepper: config.privacy.phoneHashPepper,
@@ -192,6 +195,18 @@ async function main(): Promise<void> {
       ...(process.env.ADMIN_TOKEN ? { adminToken: process.env.ADMIN_TOKEN } : {}),
       ...(assessment ? { assessment, retriever: assessment.retriever } : {}),
       ...(knowledgeIndexSize !== null ? { indexSize: () => knowledgeIndexSize as number } : {}),
+    },
+    register: {
+      registrations,
+      pepper: config.privacy.phoneHashPepper,
+      availableChannels: [...transports.keys()] as Array<'whatsapp' | 'telegram'>,
+      ...(config.telegram?.botUsername
+        ? { telegramBotUsername: config.telegram.botUsername }
+        : {}),
+      ...(transports.has('whatsapp')
+        ? { whatsappTransport: transports.get('whatsapp') as MessageTransport }
+        : {}),
+      studyName: process.env.STUDY_NAME ?? 'the MIVA maternal health study',
     },
     demo: {
       // Off by default in production: it is an unauthenticated chat interface onto the

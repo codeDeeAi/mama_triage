@@ -14,7 +14,7 @@ import { MessageRepository } from '../../src/db/repositories/message.repo';
 import { AuditRepository } from '../../src/db/repositories/event.repo';
 import { OutcomeRepository } from '../../src/db/repositories/outcome.repo';
 import { createMessageHandler, CONSENT_ACCEPT_ID, PATHWAY_BABY_ID } from '../../src/orchestrator/handler';
-import { hashPhone } from '../../src/privacy/hashPhone';
+import { hashIdentity } from '../../src/privacy/hashPhone';
 import { LlmError } from '../../src/llm/anthropic';
 import type { AssessmentDeps } from '../../src/orchestrator/assessment';
 import type { RetrievalOutcome } from '../../src/rag/retrieve';
@@ -174,6 +174,7 @@ function ctx(assessment?: AssessmentDeps) {
   const send = async (text: string, replyId?: string): Promise<void> => {
     n += 1;
     await handle({
+      channel: 'whatsapp',
       waMessageId: `wamid.${phone}.${n}`,
       from: phone,
       text,
@@ -184,7 +185,7 @@ function ctx(assessment?: AssessmentDeps) {
     });
   };
 
-  const waIdHash = hashPhone(phone, PEPPER);
+  const waIdHash = hashIdentity('whatsapp', phone, PEPPER);
   return {
     send, wa, sessions, outcomes, audit, waIdHash,
     async session() {

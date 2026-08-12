@@ -18,6 +18,7 @@ import { createWebhookRouter, type WebhookDeps } from './webhook.routes';
 import { createAdminRouter, type AdminDeps } from './admin.routes';
 import { createDemoRouter, type DemoDeps } from './demo.routes';
 import { createTelegramRouter, type TelegramWebhookDeps } from './telegram.routes';
+import { createRegisterRouter, type RegisterDeps } from './register.routes';
 import { join } from 'node:path';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
@@ -36,6 +37,8 @@ export interface AppDeps extends WebhookDeps {
   whatsappEnabled?: boolean;
   /** Telegram channel. Omit to run WhatsApp only. */
   telegram?: Pick<TelegramWebhookDeps, 'secretToken' | 'client' | 'handleMessage'>;
+  /** Registration surface. Omit to disable it entirely. */
+  register?: Omit<RegisterDeps, 'logger'>;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -97,6 +100,11 @@ export function createApp(deps: AppDeps): Express {
 
   if (deps.admin) {
     app.use(createAdminRouter({ ...deps.admin, logger: deps.logger }));
+  }
+
+  if (deps.register) {
+    app.use(createRegisterRouter({ ...deps.register, logger: deps.logger }));
+    app.use('/register', express.static(join(process.cwd(), 'public', 'register')));
   }
 
   if (deps.demo?.enabled) {

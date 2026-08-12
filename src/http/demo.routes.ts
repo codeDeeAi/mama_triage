@@ -33,7 +33,7 @@ import { renderOptionsAsText } from '../whatsapp/transport';
 import type { ReplyButton } from '../whatsapp/types';
 import type { InboundMessage } from '../whatsapp/types';
 import { evaluateRedFlags } from '../safety/redFlags';
-import { hashPhone } from '../privacy/hashPhone';
+import { hashIdentity } from '../privacy/hashPhone';
 import { detectDistress } from '../safety/distress';
 import type { SessionRepository } from '../db/repositories/session.repo';
 import type { OutcomeRepository } from '../db/repositories/outcome.repo';
@@ -138,6 +138,9 @@ export function createDemoRouter(deps: DemoDeps): Router {
     const started = Date.now();
     try {
       await handle({
+        // Treated as Telegram for identity purposes: a synthetic numeric id with no
+        // phone-number semantics, which is exactly the Telegram case.
+        channel: 'telegram',
         waMessageId: `demo.${sessionId}.${randomUUID()}`,
         from,
         text,
@@ -154,7 +157,7 @@ export function createDemoRouter(deps: DemoDeps): Router {
 
     // Inspector data: what the deterministic layer saw in this message, and where the
     // session stands. This is what makes the demo useful to a clinical reviewer.
-    const waIdHash = hashPhone(from, deps.pepper);
+    const waIdHash = hashIdentity('telegram', from, deps.pepper);
     // Deliberately not findActive: an escalated or completed session is exactly the one
     // a reviewer most wants to inspect, and findActive excludes terminal states.
     const session = await deps.sessions.findLatest(waIdHash);

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Join — MamaTriage</title>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --text:#e7e9ee;
+    --muted:#98a0b0; --accent:#25d366; --telegram:#2aabee; --warn:#f0883e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex;justify-content:center;padding:24px}
+  .card{width:100%;max-width:520px}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .notice{background:#3a2a12;border:1px solid #6b4a1c;color:#f5c77e;
+    padding:12px 14px;border-radius:8px;font-size:13.5px;margin-bottom:22px}
+  label{display:block;font-size:14px;margin:18px 0 6px;font-weight:600}
+  .hint{color:var(--muted);font-size:12.5px;font-weight:400;margin-top:3px}
+  input[type=text]{width:100%;background:var(--panel);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:16px}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .channels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+  .channel{background:var(--panel);border:2px solid var(--line);border-radius:10px;
+    padding:14px;cursor:pointer;text-align:center;transition:border-color .12s}
+  .channel:hover{border-color:#3a4150}
+  .channel.sel[data-c=telegram]{border-color:var(--telegram)}
+  .channel.sel[data-c=whatsapp]{border-color:var(--accent)}
+  .channel .name{font-weight:600;font-size:15px}
+  .channel .note{color:var(--muted);font-size:12px;margin-top:4px}
+  .channel[aria-disabled=true]{opacity:.4;cursor:not-allowed}
+  button.submit{width:100%;margin-top:22px;background:var(--accent);color:#06281a;
+    border:0;border-radius:8px;padding:14px;font-size:16px;font-weight:700;cursor:pointer}
+  button.submit:disabled{opacity:.5;cursor:default}
+  .err{color:#ff9ea1;font-size:13px;margin-top:6px}
+  .hidden{display:none}
+  .result{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:20px;margin-top:20px;text-align:center}
+  .result a.cta{display:inline-block;margin-top:14px;background:var(--telegram);
+    color:#04222f;padding:13px 26px;border-radius:8px;font-weight:700;text-decoration:none}
+  .foot{color:var(--muted);font-size:12px;margin-top:26px;text-align:center}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Join MamaTriage</h1>
+  <p class="sub">Check danger signs for you and your baby in the first year after birth.</p>
+
+  <div class="notice">
+    <strong>This is a research prototype.</strong> It is not a doctor and does not give
+    diagnoses. If you think something is an emergency, go to your nearest health facility
+    straight away.
+  </div>
+
+  <form id="form" novalidate>
+    <label for="name">
+      What should we call you?
+      <span class="hint">A first name or nickname is fine. We do not need your real name.</span>
+    </label>
+    <input type="text" id="name" autocomplete="given-name" maxlength="80" />
+    <div class="err hidden" id="err-name"></div>
+
+    <label>Where would you like to chat?</label>
+    <div class="channels" id="channels"></div>
+    <div class="err hidden" id="err-channel"></div>
+
+    <div id="phone-block" class="hidden">
+      <label for="phone">
+        Your WhatsApp number
+        <span class="hint">
+          Only needed for WhatsApp, so we can message you. Stored scrambled, never as a
+          readable number.
+        </span>
+      </label>
+      <input type="text" id="phone" inputmode="tel" autocomplete="tel"
+             placeholder="0801 234 5678" />
+      <div class="err hidden" id="err-phone"></div>
+    </div>
+
+    <button class="submit" id="submit" type="submit">Continue</button>
+  </form>
+
+  <div class="result hidden" id="result"></div>
+
+  <p class="foot" id="foot">
+    We store an anonymous copy of your conversation for research. Your phone number is
+    never saved in a readable form.
+  </p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let channel = null;
+let config = { channels: [], telegramBotUsername: null, studyName: '' };
+
+const LABELS = {
+  telegram: { name: 'Telegram', note: 'No phone number needed' },
+  whatsapp: { name: 'WhatsApp', note: 'Needs your number' },
+};
+
+async function loadChannels() {
+  try {
+    config = await (await fetch('/register/api/channels')).json();
+  } catch {
+    config.channels = [];
+  }
+
+  const wrap = $('channels');
+  wrap.innerHTML = '';
+  for (const c of ['telegram', 'whatsapp']) {
+    const available = config.channels.includes(c);
+    const el = document.createElement('div');
+    el.className = 'channel';
+    el.dataset.c = c;
+    if (!available) el.setAttribute('aria-disabled', 'true');
+    el.innerHTML =
+      '<div class="name">' + LABELS[c].name + '</div>' +
+      '<div class="note">' + (available ? LABELS[c].note : 'Not available') + '</div>';
+    if (available) el.onclick = () => select(c);
+    wrap.appendChild(el);
+  }
+
+  // Preselect when only one channel is offered, rather than showing a choice of one.
+  if (config.channels.length === 1) select(config.channels[0]);
+}
+
+function select(c) {
+  channel = c;
+  for (const el of document.querySelectorAll('.channel')) {
+    el.classList.toggle('sel', el.dataset.c === c);
+  }
+  // The phone field only exists when the chosen channel actually needs it.
+  $('phone-block').classList.toggle('hidden', c !== 'whatsapp');
+  hide('err-channel');
+}
+
+function show(id, msg) { const e = $(id); e.textContent = msg; e.classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  hide('err-name'); hide('err-channel'); hide('err-phone');
+
+  const displayName = $('name').value.trim();
+  const phone = $('phone').value.trim();
+
+  if (!displayName) return show('err-name', 'Please tell us what to call you.');
+  if (!channel) return show('err-channel', 'Please choose Telegram or WhatsApp.');
+  if (channel === 'whatsapp' && phone.replace(/\D/g, '').length < 10) {
+    return show('err-phone', 'Please enter a valid phone number.');
+  }
+
+  $('submit').disabled = true;
+  $('submit').textContent = 'Please wait…';
+
+  try {
+    const body = { displayName, channel };
+    // Only ever send the number on the channel that needs it.
+    if (channel === 'whatsapp') body.phone = phone;
+
+    const res = await fetch('/register/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      const issue = (data.issues || [])[0];
+      if (issue && issue.field === 'phone') show('err-phone', issue.message);
+      else show('err-name', data.error || 'Something went wrong. Please try again.');
+      return;
+    }
+
+    $('form').classList.add('hidden');
+    $('result').classList.remove('hidden');
+    $('result').innerHTML =
+      data.channel === 'telegram'
+        ? '<div style="font-size:34px">💬</div>' +
+          '<p><strong>Almost there, ' + escapeHtml(displayName) + '.</strong></p>' +
+          '<p>' + escapeHtml(data.instructions) + '</p>' +
+          '<a class="cta" href="' + data.deepLink + '">Open Telegram</a>'
+        : '<div style="font-size:34px">' + (data.welcomeSent ? '✅' : '⚠️') + '</div>' +
+          '<p><strong>Thank you, ' + escapeHtml(displayName) + '.</strong></p>' +
+          '<p>' + escapeHtml(data.instructions) + '</p>';
+  } catch {
+    show('err-name', 'Could not reach the service. Please try again.');
+  } finally {
+    $('submit').disabled = false;
+    $('submit').textContent = 'Continue';
+  }
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+loadChannels();
+</script>
+</body>
+</html>

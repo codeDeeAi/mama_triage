@@ -8,6 +8,11 @@
 
 /** A normalised inbound message, after parsing and validation. */
 export interface InboundMessage {
+  /**
+   * Which channel this arrived on. Determines how the sender's identity is hashed, and
+   * keeps sessions from two channels from ever colliding.
+   */
+  channel: 'whatsapp' | 'telegram';
   /** Meta's message ID (`wamid.…`). The idempotency key. */
   waMessageId: string;
   /** Sender's phone number in E.164 without `+`. Hashed immediately; never persisted. */
