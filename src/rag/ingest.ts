@@ -243,6 +243,12 @@ async function recordProvenance(
 /* istanbul ignore next -- CLI wiring, exercised by running the script */
 async function main(): Promise<void> {
   const config = getConfig();
+  if (!config.rag) {
+    process.stderr.write(
+      'Ingestion needs VOYAGE_API_KEY: the corpus cannot be embedded without it.\n',
+    );
+    process.exit(1);
+  }
 
   const db = createDb(config.databaseUrl);
   try {

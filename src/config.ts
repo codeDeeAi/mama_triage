@@ -56,15 +56,20 @@ const schema = z.object({
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),
 
-  // Anthropic
-  ANTHROPIC_API_KEY: requiredString('ANTHROPIC_API_KEY is required'),
+  // Anthropic. Optional: without it the deterministic safety layer, consent flow and
+  // pathway selection still run, and assessment is disabled rather than the service
+  // refusing to start. That makes the safety-critical paths testable on a real handset
+  // before any LLM credentials exist.
+  ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
   SAFETY_MODEL: z.string().min(1).default('claude-haiku-4-5-20251001'),
   LLM_TIMEOUT_MS: intString('LLM_TIMEOUT_MS').default('15000'),
   LLM_MAX_TOKENS: intString('LLM_MAX_TOKENS').default('1500'),
 
   // RAG
-  VOYAGE_API_KEY: requiredString('VOYAGE_API_KEY is required'),
+  // Optional for the same reason as ANTHROPIC_API_KEY — both are needed for assessment,
+  // neither for the safety layer.
+  VOYAGE_API_KEY: z.string().optional(),
   EMBEDDING_MODEL: z.string().min(1).default('voyage-3'),
   CHROMA_PATH: z.string().min(1).default('./knowledge/index'),
   RETRIEVAL_TOP_K: intString('RETRIEVAL_TOP_K').default('5'),
@@ -110,14 +115,19 @@ export interface Config {
     /** Used to build the t.me deep link shown at registration. */
     botUsername?: string;
   };
-  llm: {
+  /**
+   * Assessment services. Absent when the LLM or embedding credentials are not
+   * configured, in which case the deterministic safety layer still runs and the
+   * assessment stage tells the mother it is unavailable.
+   */
+  llm?: {
     apiKey: string;
     model: string;
     safetyModel: string;
     timeoutMs: number;
     maxTokens: number;
   };
-  rag: {
+  rag?: {
     voyageApiKey: string;
     embeddingModel: string;
     chromaPath: string;
@@ -218,19 +228,27 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
           },
         }
       : {}),
-    llm: {
-      apiKey: c.ANTHROPIC_API_KEY,
-      model: c.ANTHROPIC_MODEL,
-      safetyModel: c.SAFETY_MODEL,
-      timeoutMs: c.LLM_TIMEOUT_MS,
-      maxTokens: c.LLM_MAX_TOKENS,
-    },
-    rag: {
-      voyageApiKey: c.VOYAGE_API_KEY,
-      embeddingModel: c.EMBEDDING_MODEL,
-      chromaPath: c.CHROMA_PATH,
-      topK: c.RETRIEVAL_TOP_K,
-    },
+    ...(c.ANTHROPIC_API_KEY
+      ? {
+          llm: {
+            apiKey: c.ANTHROPIC_API_KEY,
+            model: c.ANTHROPIC_MODEL,
+            safetyModel: c.SAFETY_MODEL,
+            timeoutMs: c.LLM_TIMEOUT_MS,
+            maxTokens: c.LLM_MAX_TOKENS,
+          },
+        }
+      : {}),
+    ...(c.VOYAGE_API_KEY
+      ? {
+          rag: {
+            voyageApiKey: c.VOYAGE_API_KEY,
+            embeddingModel: c.EMBEDDING_MODEL,
+            chromaPath: c.CHROMA_PATH,
+            topK: c.RETRIEVAL_TOP_K,
+          },
+        }
+      : {}),
     privacy: { phoneHashPepper: c.PHONE_HASH_PEPPER },
     behaviour: {
       sessionTtlMinutes: c.SESSION_TTL_MINUTES,

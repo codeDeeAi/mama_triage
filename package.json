@@ -26,7 +26,8 @@
     "kb:ingest": "npm run build && node dist/rag/ingest.js",
     "docs:register": "npm run build && node dist/safety/reviewDoc.js",
     "eval:smoke": "npm run build && node dist/eval/smoke.js",
-    "kb:extract": "npm run build && node dist/rag/extract.js"
+    "kb:extract": "npm run build && node dist/rag/extract.js",
+    "telegram:poll": "npm run build && node dist/telegram/poll.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

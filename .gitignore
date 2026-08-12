@@ -27,3 +27,5 @@ eval/out/
 .DS_Store
 .idea/
 *.swp
+
+IMPLEMENTATION_PLAN.md

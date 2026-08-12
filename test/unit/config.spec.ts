@@ -27,10 +27,10 @@ describe('parseConfig — happy path', () => {
 
   it('applies documented defaults', () => {
     const cfg = parseConfig(validEnv());
-    expect(cfg.llm.model).toBe('claude-sonnet-5');
-    expect(cfg.llm.safetyModel).toBe('claude-haiku-4-5-20251001');
-    expect(cfg.llm.timeoutMs).toBe(15000);
-    expect(cfg.rag.topK).toBe(5);
+    expect(cfg.llm?.model).toBe('claude-sonnet-5');
+    expect(cfg.llm?.safetyModel).toBe('claude-haiku-4-5-20251001');
+    expect(cfg.llm?.timeoutMs).toBe(15000);
+    expect(cfg.rag?.topK).toBe(5);
     expect(cfg.behaviour.sessionTtlMinutes).toBe(60);
     expect(cfg.behaviour.promptVersion).toBe('triage.v1');
   });
@@ -38,7 +38,7 @@ describe('parseConfig — happy path', () => {
   it('coerces numeric strings to numbers', () => {
     const cfg = parseConfig({ ...validEnv(), PORT: '3000', RETRIEVAL_TOP_K: '8' });
     expect(cfg.port).toBe(3000);
-    expect(cfg.rag.topK).toBe(8);
+    expect(cfg.rag?.topK).toBe(8);
     expect(typeof cfg.port).toBe('number');
   });
 
@@ -51,8 +51,6 @@ describe('parseConfig — happy path', () => {
 describe('parseConfig — required secrets', () => {
   it.each([
     'DATABASE_URL',
-    'ANTHROPIC_API_KEY',
-    'VOYAGE_API_KEY',
     'PHONE_HASH_PEPPER',
   ])('refuses to start without %s', (key) => {
     const env = validEnv();
@@ -93,8 +91,8 @@ describe('parseConfig — validation', () => {
   it('reports every problem at once, not just the first', () => {
     const env = validEnv();
     delete env.DATABASE_URL;
-    delete env.ANTHROPIC_API_KEY;
-    delete env.VOYAGE_API_KEY;
+    delete env.PHONE_HASH_PEPPER;
+    env.PORT = 'not-a-number';
 
     let message = '';
     try {
@@ -104,8 +102,8 @@ describe('parseConfig — validation', () => {
     }
 
     expect(message).toMatch(/DATABASE_URL/);
-    expect(message).toMatch(/ANTHROPIC_API_KEY/);
-    expect(message).toMatch(/VOYAGE_API_KEY/);
+    expect(message).toMatch(/PHONE_HASH_PEPPER/);
+    expect(message).toMatch(/PORT/);
     expect(message).toMatch(/3 problems/);
   });
 
@@ -167,5 +165,28 @@ describe('messaging channels — WhatsApp, Telegram, or both', () => {
   it('carries the bot username for the registration deep link', () => {
     const cfg = parseConfig({ ...telegramOnly(), TELEGRAM_BOT_USERNAME: 'MamaTriageBot' });
     expect(cfg.telegram?.botUsername).toBe('MamaTriageBot');
+  });
+});
+
+describe('assessment credentials are optional', () => {
+  it('starts without LLM credentials, with assessment disabled', () => {
+    // The deterministic safety layer, consent and pathway selection are what a mother
+    // most needs, and they need no API key. Requiring one would make the safety-critical
+    // paths untestable on a real handset until billing is set up.
+    const env = validEnv();
+    delete env.ANTHROPIC_API_KEY;
+    delete env.VOYAGE_API_KEY;
+
+    const cfg = parseConfig(env);
+    expect(cfg.llm).toBeUndefined();
+    expect(cfg.rag).toBeUndefined();
+    expect(cfg.whatsapp).toBeDefined();
+  });
+
+  it('still requires the database and the privacy pepper', () => {
+    const env = validEnv();
+    delete env.ANTHROPIC_API_KEY;
+    delete env.PHONE_HASH_PEPPER;
+    expect(() => parseConfig(env)).toThrow(/PHONE_HASH_PEPPER/);
   });
 });

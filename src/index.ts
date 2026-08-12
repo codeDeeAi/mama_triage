@@ -36,7 +36,11 @@ async function main(): Promise<void> {
   const logger = createLogger(config.logLevel, !config.isProduction);
 
   logger.info(
-    { env: config.env, model: config.llm.model, promptVersion: config.behaviour.promptVersion },
+    {
+      env: config.env,
+      model: config.llm?.model ?? 'not configured',
+      promptVersion: config.behaviour.promptVersion,
+    },
     'starting mama-triage',
   );
 
@@ -55,13 +59,20 @@ async function main(): Promise<void> {
   // The knowledge index is built at image build time and shipped read-only. If it is
   // missing the service still starts, but assessment is disabled rather than silently
   // answering ungrounded — the consent and deterministic safety paths keep working.
-  const indexPath = config.rag.chromaPath.endsWith('.json')
-    ? config.rag.chromaPath
-    : join(config.rag.chromaPath, 'index.json');
+  const indexPath = !config.rag
+    ? null
+    : config.rag.chromaPath.endsWith('.json')
+      ? config.rag.chromaPath
+      : join(config.rag.chromaPath, 'index.json');
 
   let assessment: Parameters<typeof createMessageHandler>[0]['assessment'];
   let knowledgeIndexSize: number | null = null;
   try {
+    if (!indexPath || !config.rag || !config.llm) {
+      throw new Error(
+        'assessment credentials not configured (ANTHROPIC_API_KEY / VOYAGE_API_KEY)',
+      );
+    }
     const store = MemoryVectorStore.fromFile(indexPath);
     knowledgeIndexSize = store.size();
     const embedder = new VoyageEmbedder({
@@ -92,9 +103,10 @@ async function main(): Promise<void> {
       'knowledge index loaded',
     );
   } catch (err) {
-    logger.error(
-      { err, indexPath },
-      'knowledge index unavailable — assessment disabled, safety paths still active',
+    logger.warn(
+      { reason: err instanceof Error ? err.message : String(err), indexPath },
+      'assessment disabled — deterministic safety layer, consent and pathway selection ' +
+        'remain fully active',
     );
   }
 
