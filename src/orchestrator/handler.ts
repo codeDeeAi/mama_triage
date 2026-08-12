@@ -15,15 +15,17 @@
 
 import { detectDistress } from '../safety/distress';
 import { evaluateRedFlags } from '../safety/redFlags';
-import { disclaimer, referralDirective } from '../safety/fallback';
 import { hashPhone } from '../privacy/hashPhone';
 import type { InboundMessage } from '../whatsapp/types';
 import type { WhatsAppClient } from '../whatsapp/client';
 import type { SessionRepository, SessionRow } from '../db/repositories/session.repo';
 import type { MessageRepository } from '../db/repositories/message.repo';
 import type { AuditRepository } from '../db/repositories/event.repo';
+import type { OutcomeRepository } from '../db/repositories/outcome.repo';
 import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
+import { buildEmergencyMessage } from './render';
+import { runAssessmentTurn, type AssessmentDeps } from './assessment';
 
 export interface HandlerDeps {
   sessions: SessionRepository;
@@ -33,7 +35,18 @@ export interface HandlerDeps {
   logger: Logger;
   pepper: string;
   sessionTtlMinutes: number;
+  /**
+   * Assessment services. Optional so the consent and safety paths can be exercised
+   * without an LLM configured; when absent, `assessing` replies that the assessment is
+   * unavailable rather than failing.
+   */
+  assessment?: AssessmentDeps;
+  outcomes?: OutcomeRepository;
+  /** How many prior messages to include as conversation context. */
+  transcriptWindow?: number;
 }
+
+export { buildEmergencyMessage };
 
 export const CONSENT_ACCEPT_ID = 'CONSENT_ACCEPT';
 export const CONSENT_DECLINE_ID = 'CONSENT_DECLINE';
@@ -160,14 +173,7 @@ export function createMessageHandler(deps: HandlerDeps) {
         return;
 
       case 'assessing':
-        // Assessment state machine lands in sprint 4.
-        await reply(
-          session.language === 'en'
-            ? 'Thank you. The full symptom assessment is still being built. ' +
-              'If you are worried about anything, please go to the nearest health facility.'
-            : 'Thank you. Di full assessment never ready. ' +
-              'If anything dey worry you, abeg go health centre wey dey near you.',
-        );
+        await handleAssessment(deps, session, msg, reply, receivedAt);
         return;
 
       /* istanbul ignore next -- terminal states are not reachable via findActive */
@@ -234,38 +240,108 @@ async function runSafetyScan(
   return true;
 }
 
-/** The referral directive leads and closes the message; nothing is rendered above it. */
-export function buildEmergencyMessage(
-  language: Language,
-  mentalHealth: boolean,
-): string {
-  const lines: string[] = [];
-
-  lines.push(language === 'en' ? '🔴 *EMERGENCY*' : '🔴 *EMERGENCY*');
-  lines.push('');
-  lines.push(referralDirective(language));
-  lines.push('');
-  lines.push(
-    language === 'en'
-      ? 'What you have described can be serious and needs to be checked by a health worker straight away. Do not wait to see if it improves.'
-      : 'Wetin you talk fit serious, health worker need to check am sharp sharp. No wait make e better first.',
-  );
-
-  if (mentalHealth) {
-    lines.push('');
-    lines.push(
-      language === 'en'
-        ? 'You are not alone, and what you are feeling can be helped. Please tell a health worker, or someone you trust, how you are feeling today.'
-        : 'You no dey alone, and wetin you dey feel get help. Abeg tell health worker, or person wey you trust, how you dey feel today.',
+/**
+ * Run one assessment turn and apply its result to the session.
+ *
+ * The session is updated before the reply is sent: if delivery fails, the slots and
+ * urgency the mother's answer established are already recorded, so a retry does not lose
+ * clinical information.
+ */
+async function handleAssessment(
+  deps: HandlerDeps,
+  session: SessionRow,
+  msg: InboundMessage,
+  reply: (body: string) => Promise<void>,
+  receivedAt: number,
+): Promise<void> {
+  if (!deps.assessment) {
+    await reply(
+      session.language === 'en'
+        ? 'The symptom assessment is not available right now. If you are worried about ' +
+          'anything, please go to the nearest health facility.'
+        : 'Di assessment no dey available now. If anything dey worry you, abeg go health ' +
+          'centre wey dey near you.',
     );
+    return;
   }
 
-  lines.push('');
-  lines.push(referralDirective(language));
-  lines.push('');
-  lines.push(disclaimer(language));
+  const history = await deps.messages.recentForSession(
+    session.id,
+    deps.transcriptWindow ?? 20,
+  );
 
-  return lines.join('\n');
+  const transcript = history.map((m) => ({
+    role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
+    content: m.body_redacted,
+  }));
+
+  const outcome = await runAssessmentTurn(deps.assessment, {
+    pathway: session.pathway,
+    language: session.language,
+    knownSlots: session.slots,
+    currentUrgency: session.urgency_current,
+    transcript,
+    message: msg.text,
+  });
+
+  await deps.sessions.mergeSlots(session.id, outcome.slots);
+  if (outcome.urgency) await deps.sessions.raiseUrgency(session.id, outcome.urgency);
+
+  if (outcome.decision) {
+    if (deps.outcomes) {
+      await deps.outcomes.record({
+        sessionId: session.id,
+        pathway: session.pathway,
+        urgency: outcome.decision.urgency,
+        urgencyLlm: outcome.decision.urgencyLlm,
+        urgencyRules: outcome.decision.urgencyRules,
+        escalatedBy: outcome.decision.escalatedBy,
+        redFlags: outcome.decision.redFlags,
+        slots: outcome.decision.slots,
+        citations: outcome.decision.citations,
+        rationale: outcome.decision.result.rationale,
+        model: outcome.decision.model,
+        promptVersion: outcome.decision.promptVersion,
+        inputTokens: outcome.decision.inputTokens,
+        outputTokens: outcome.decision.outputTokens,
+        latencyMs: outcome.decision.latencyMs,
+      });
+    }
+
+    // The model is authoritative on language once an assessment is under way; the
+    // heuristic used before this point only had to get the consent message right.
+    const detected = outcome.decision.result.detected_language as Language;
+    if (detected !== session.language) {
+      await deps.sessions.setLanguage(session.id, detected);
+    }
+  }
+
+  if (outcome.safetyCheckEscalated) {
+    await deps.audit.record('SAFETY_CHECK_ESCALATED', { to: outcome.urgency }, session.id);
+  }
+  if (outcome.fallbackReason) {
+    await deps.audit.record('LLM_FAILOVER', { reason: outcome.fallbackReason }, session.id);
+  }
+  if (outcome.state === 'escalated') {
+    await deps.audit.record('EMERGENCY_ISSUED', { via: 'assessment' }, session.id);
+  }
+
+  await deps.sessions.setState(session.id, outcome.state);
+
+  for (const body of outcome.messages) {
+    await reply(body);
+  }
+
+  deps.logger.info(
+    {
+      sessionId: session.id,
+      urgency: outcome.urgency,
+      state: outcome.state,
+      escalatedBy: outcome.decision?.escalatedBy ?? null,
+      latencyMs: Date.now() - receivedAt,
+    },
+    'assessment turn complete',
+  );
 }
 
 async function handleConsent(

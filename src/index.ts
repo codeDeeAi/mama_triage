@@ -11,10 +11,18 @@ import { createDb } from './db/pool';
 import { SessionRepository } from './db/repositories/session.repo';
 import { MessageRepository } from './db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from './db/repositories/event.repo';
+import { OutcomeRepository } from './db/repositories/outcome.repo';
 import { WhatsAppClient } from './whatsapp/client';
 import { TaskQueue } from './http/queue';
 import { createApp } from './http/app';
 import { createMessageHandler } from './orchestrator/handler';
+import { MemoryVectorStore } from './rag/store';
+import { VoyageEmbedder } from './rag/embed';
+import { Retriever } from './rag/retrieve';
+import { AnthropicClient } from './llm/anthropic';
+import { TriageService } from './llm/triage';
+import { SafetyCheckService } from './llm/safetyCheck';
+import { join } from 'node:path';
 
 async function main(): Promise<void> {
   const config = getConfig(); // exits non-zero if invalid
@@ -35,6 +43,51 @@ async function main(): Promise<void> {
   const messages = new MessageRepository(db);
   const events = new WebhookEventRepository(db);
   const audit = new AuditRepository(db);
+  const outcomes = new OutcomeRepository(db);
+
+  // The knowledge index is built at image build time and shipped read-only. If it is
+  // missing the service still starts, but assessment is disabled rather than silently
+  // answering ungrounded — the consent and deterministic safety paths keep working.
+  const indexPath = config.rag.chromaPath.endsWith('.json')
+    ? config.rag.chromaPath
+    : join(config.rag.chromaPath, 'index.json');
+
+  let assessment: Parameters<typeof createMessageHandler>[0]['assessment'];
+  try {
+    const store = MemoryVectorStore.fromFile(indexPath);
+    const embedder = new VoyageEmbedder({
+      apiKey: config.rag.voyageApiKey,
+      model: config.rag.embeddingModel,
+    });
+    const llm = new AnthropicClient({
+      apiKey: config.llm.apiKey,
+      timeoutMs: config.llm.timeoutMs,
+    });
+
+    assessment = {
+      retriever: new Retriever(store, embedder, { topK: config.rag.topK }),
+      triage: new TriageService({
+        client: llm,
+        model: config.llm.model,
+        maxTokens: config.llm.maxTokens,
+        promptVersion: config.behaviour.promptVersion,
+      }),
+      safetyCheck: new SafetyCheckService({ client: llm, model: config.llm.safetyModel }),
+      onAudit: (event, detail) => {
+        void audit.record(event as never, detail);
+      },
+    };
+
+    logger.info(
+      { chunks: store.size(), embeddingModel: store.embeddingModel, builtAt: store.builtAt },
+      'knowledge index loaded',
+    );
+  } catch (err) {
+    logger.error(
+      { err, indexPath },
+      'knowledge index unavailable — assessment disabled, safety paths still active',
+    );
+  }
 
   const whatsapp = new WhatsAppClient({
     token: config.whatsapp.token,
@@ -50,10 +103,12 @@ async function main(): Promise<void> {
     sessions,
     messages,
     audit,
+    outcomes,
     whatsapp,
     logger,
     pepper: config.privacy.phoneHashPepper,
     sessionTtlMinutes: config.behaviour.sessionTtlMinutes,
+    ...(assessment ? { assessment } : {}),
   });
 
   const app = createApp({
