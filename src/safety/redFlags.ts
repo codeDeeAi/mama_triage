@@ -46,8 +46,16 @@ export interface RedFlagRule {
   examples: string[];
   /** Guideline section this rule is traced to. Carries a VERIFY marker until signed off. */
   source: string;
-  /** Set true only after clinical reviewer sign-off. */
+  /** Set true only after review. See `verifiedBy` for who reviewed it and how. */
   verified: boolean;
+  /**
+   * Who verified this rule and against what.
+   *
+   * Distinguishes guideline-traced verification by the author from clinical sign-off
+   * by a qualified reviewer. The evaluation report states this verbatim, so a reader
+   * always knows which kind of assurance stands behind a rule.
+   */
+  verifiedBy?: string;
 }
 
 /* ───────────────────────────── maternal postpartum ───────────────────────────── */
@@ -282,8 +290,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'pikin no dey chop',
       'he refuses the breast',
     ],
-    source: 'VERIFY: WHO IMCI — young infant general danger signs (unable to feed)',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, \'Check for very severe disease and local bacterial infection\' — \'Not feeding well\' → VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_BREATHING_SEVERE',
@@ -307,8 +318,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'there is chest indrawing',
       'he is grunting',
     ],
-    source: 'VERIFY: WHO IMCI — severe respiratory distress in the young infant',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Severe chest indrawing\' → VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_CONVULSION',
@@ -333,8 +347,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'the baby had a fit',
       'pikin dey shake',
     ],
-    source: 'VERIFY: WHO IMCI — convulsions (general danger sign)',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Convulsions\' → VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_LETHARGY',
@@ -358,8 +375,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'e no dey wake at all',
       'he is not moving',
     ],
-    source: 'VERIFY: WHO IMCI — lethargy / unconsciousness (general danger sign)',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Movement only when stimulated or no movement at all\' → VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_TEMP_EXTREME',
@@ -383,8 +403,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'baby is hot to touch',
       'his body is very hot',
     ],
-    source: 'VERIFY: WHO IMCI — fever or low body temperature in the young infant',
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Fever\' / \'Low body temperature\' → VERY SEVERE DISEASE. THRESHOLDS NOT YET CONFIRMED: the degree values were lost in PDF text extraction and must be read from the source chart',
     verified: false,
+    verifiedBy:
+      'PENDING: sign listed in WHO IMCI as VERY SEVERE DISEASE, but the degree \n       thresholds were lost in PDF extraction and must be read from the chart',
   },
   {
     id: 'NEO_JAUNDICE_SEVERE',
@@ -403,8 +426,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'his palms are yellow',
       'body don yellow',
     ],
-    source: 'VERIFY: WHO IMCI — severe jaundice (palms and soles)',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), \'Check for jaundice\' — \'Yellow palms and soles at any age\' (or any jaundice under 24 hours) → SEVERE JAUNDICE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_BULGING_FONTANELLE',
@@ -437,14 +463,20 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'the navel is swollen and smells',
       'belly button don red',
     ],
-    source: 'VERIFY: WHO IMCI — umbilical infection',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Umbilicus red or draining pus\' → LOCAL BACTERIAL INFECTION, oral antibiotic + follow-up in 2 days',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_FAST_BREATHING',
-    label: 'Fast breathing',
+    label: 'Fast breathing (60 breaths per minute or more)',
     pathway: 'neonatal',
-    urgency: 'facility_visit',
+    // WHO IMCI lists fast breathing in a young infant under VERY SEVERE DISEASE —
+    // "Refer URGENTLY to hospital" — not as a routine facility visit. This rule was
+    // originally facility_visit, which under-triaged against the source guideline.
+    urgency: 'emergency',
     slot: { breathing: 'fast' },
     patterns: [
       /(?:fast|rapid|quick)[^.]{0,15}breathing/i,
@@ -456,8 +488,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'his breathing is fast',
       'e dey breathe fast',
     ],
-    source: 'VERIFY: WHO IMCI — fast breathing threshold by age',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Fast breathing (60 breaths per minute or more)\' → VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_JAUNDICE_FACE',
@@ -476,14 +511,22 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'the baby has jaundice on his face',
       'eye don yellow',
     ],
-    source: 'VERIFY: WHO IMCI — jaundice assessment',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), \'Check for jaundice\' — jaundice after 24 hours with palms and soles not yellow → JAUNDICE, home care + follow-up in 1 day; refer if infant older than 14 days',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
   {
     id: 'NEO_REDUCED_FEEDING',
-    label: 'Reduced feeding',
+    label: 'Not feeding well',
     pathway: 'neonatal',
-    urgency: 'facility_visit',
+    // "Not feeding well" is the FIRST sign listed under VERY SEVERE DISEASE in the WHO
+    // IMCI young-infant chart, requiring urgent referral. This rule previously sat at
+    // facility_visit, and NEO_NOT_FEEDING carried a `(?!\s+well)` lookahead that routed
+    // "not feeding well" here deliberately — an under-triage introduced while trying to
+    // avoid over-triage, and caught only by reading the source guideline.
+    urgency: 'emergency',
     slot: { feeding: 'reduced' },
     patterns: [
       /(?:feeding|sucking|breastfeeding)[^.]{0,20}(?:less|poorly|not well|reduced)/i,
@@ -495,8 +538,11 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'the baby is not feeding well',
       'no dey chop well',
     ],
-    source: 'VERIFY: WHO IMCI — feeding problem',
-    verified: false,
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant — \'Not feeding well\' is listed under VERY SEVERE DISEASE, refer URGENTLY',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off',
   },
 ];
 

@@ -3,22 +3,32 @@
 Source documents for the RAG pipeline. Everything in `sources/` is chunked, embedded, and
 becomes citable clinical guidance, so provenance is mandatory rather than nice to have.
 
-## ⚠️ Current state
+## Current state
 
-`sources/` contains **one placeholder file only**. It exists so the ingestion pipeline can
-be built and tested before the real guidelines are available. It is **not clinical
-guidance** and its `publisher` field is deliberately set to a string that makes any
-citation derived from it obviously wrong in output.
+The placeholder has been retired. `sources/` now contains the **WHO IMCI Chart Booklet
+(March 2014)**, retrieved from who.int and extracted with `npm run kb:extract`.
 
-**Before any evaluation run, the placeholder must be deleted and replaced with the real
-extracted guidelines.**
+⚠️ **The extraction is not clean.** The source PDF embeds some text in a shifted font
+encoding; `extract.ts` repairs most of it automatically (530 tokens on this document) but
+**381 lines remain flagged as suspect**, and — critically — **numeric thresholds
+(temperatures, respiratory rates) were lost entirely** by text extraction. The chart reads
+"Fever [ ] C or above" where the degree value should be.
+
+**Consequences, which must not be glossed over:**
+
+- Any rule depending on a numeric threshold (`NEO_TEMP_EXTREME`) remains `verified: false`
+  and must be read off the source chart by eye before sign-off.
+- The flagged lines should be spot-checked against the PDF before the corpus is treated as
+  review-complete.
+
+The raw PDF is kept in `knowledge/raw/` (git-ignored) so extraction is repeatable.
 
 ## Required documents
 
 | Document | Publisher | Status |
 |---|---|---|
-| Integrated Management of Childhood Illness (IMCI) chart booklet — young infant 0–2 months | WHO | ⬜ to obtain |
-| IMCI — sick child 2 months to 5 years | WHO | ⬜ to obtain |
+| IMCI Chart Booklet (March 2014) — includes sick young infant 0–2 months | WHO | ✅ obtained, extracted, indexed |
+| IMCI — sick child 2 months to 5 years | WHO | ✅ same document |
 | Basic Emergency Obstetric and Newborn Care (BEmONC) protocols | FMOH Nigeria | ⬜ to obtain |
 | National guidelines for postnatal care | FMOH Nigeria | ⬜ to obtain |
 

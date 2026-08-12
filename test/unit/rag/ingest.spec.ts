@@ -238,8 +238,8 @@ describe('ingest — end to end', () => {
   });
 });
 
-describe('ingest — the committed placeholder corpus', () => {
-  it('ingests and is obviously marked as not a clinical source', async () => {
+describe('ingest — the committed corpus', () => {
+  it('ingests the real guideline corpus with its provenance intact', async () => {
     const out = join(dir, 'index.json');
     const result = await ingest({
       corpusDir: 'knowledge/sources',
@@ -248,12 +248,29 @@ describe('ingest — the committed placeholder corpus', () => {
     });
 
     expect(result.documents).toBeGreaterThan(0);
+    expect(result.chunks).toBeGreaterThan(50);
 
     const store = MemoryVectorStore.fromFile(out);
-    // Guard: if a real guideline is ever added, this assertion is the reminder to check
-    // that the placeholder has been removed first.
-    for (const id of store.ids()) {
-      expect(store.get(id)!.publisher).toBe('PLACEHOLDER — NOT A CLINICAL SOURCE');
+    const publishers = new Set(store.ids().map((id) => store.get(id)!.publisher));
+
+    // The placeholder was retired once the real WHO chart booklet was sourced. This
+    // assertion is the tripwire that fires if one is ever reintroduced.
+    for (const p of publishers) {
+      expect(p).not.toMatch(/PLACEHOLDER/i);
     }
+    expect(publishers.has('WHO')).toBe(true);
+  });
+
+  it('preserves the young-infant danger-sign content that the safety layer depends on', async () => {
+    const out = join(dir, 'index.json');
+    await ingest({ corpusDir: 'knowledge/sources', outputPath: out, embedder: fakeEmbedder });
+
+    const store = MemoryVectorStore.fromFile(out);
+    const all = store.ids().map((id) => store.get(id)!.text).join('\n');
+
+    expect(all).toMatch(/Not feeding well/i);
+    expect(all).toMatch(/Fast breathing/i);
+    expect(all).toMatch(/Severe chest indrawing/i);
+    expect(all).toMatch(/palms and soles/i);
   });
 });

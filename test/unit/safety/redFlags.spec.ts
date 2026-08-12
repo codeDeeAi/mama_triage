@@ -190,10 +190,19 @@ describe('verb forms and intervening words', () => {
     expect(ids('she is fit and healthy', 'maternal')).not.toContain('MAT_CONVULSION');
   });
 
-  it('routes "not feeding well" to the lower tier, not to emergency', () => {
+  it('treats "not feeding well" as an emergency, per WHO IMCI', () => {
+    // WHO IMCI lists "Not feeding well" first under VERY SEVERE DISEASE — refer
+    // URGENTLY. It is matched by its own rule rather than NEO_NOT_FEEDING, but both
+    // now carry the same urgency, so the routing cannot cause an under-triage.
     const flags = ids('the baby is not feeding well', 'neonatal');
     expect(flags).toContain('NEO_REDUCED_FEEDING');
-    expect(flags).not.toContain('NEO_NOT_FEEDING');
+    expect(evaluateRedFlags({ text: 'the baby is not feeding well', pathway: 'neonatal' }).urgency)
+      .toBe('emergency');
+  });
+
+  it('treats fast breathing in a young infant as an emergency, per WHO IMCI', () => {
+    expect(evaluateRedFlags({ text: 'his breathing is fast', pathway: 'neonatal' }).urgency)
+      .toBe('emergency');
   });
 
   it.each([
@@ -208,6 +217,8 @@ describe('verb forms and intervening words', () => {
 
 describe('lower-tier rules', () => {
   it('flags cord infection as a facility visit, not an emergency', () => {
+    // WHO IMCI classifies umbilical redness/pus as LOCAL BACTERIAL INFECTION —
+    // oral antibiotic and follow-up in 2 days, not urgent referral.
     const { hits, urgency } = evaluateRedFlags({
       text: 'the cord is red and has pus',
       pathway: 'neonatal',

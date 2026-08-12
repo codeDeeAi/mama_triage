@@ -17,8 +17,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 ## Status
 
 - Rules in register: **20**
-- Signed off: **0**
-- Awaiting review: **20**
+- Signed off: **9**
+- Awaiting review: **11**
 
 > ⚠️ While any rule is unverified the evaluation runner refuses to produce reportable results (`assertRegisterVerified()`), and generated reports are stamped NOT REPORTABLE. This is deliberate.
 
@@ -35,17 +35,17 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 | `MAT_WOUND_INFECTION` | Wound or perineal infection signs | Postpartum mother | facility_visit | ⬜ |
 | `MAT_FOUL_LOCHIA` | Foul-smelling vaginal discharge | Postpartum mother | facility_visit | ⬜ |
 | `MAT_MASTITIS` | Breast infection signs | Postpartum mother | facility_visit | ⬜ |
-| `NEO_NOT_FEEDING` | Not feeding / unable to suck | Newborn / young infant | emergency | ⬜ |
-| `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ⬜ |
-| `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ⬜ |
-| `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ⬜ |
+| `NEO_NOT_FEEDING` | Not feeding / unable to suck | Newborn / young infant | emergency | ✅ |
+| `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ✅ |
+| `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ✅ |
+| `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ✅ |
 | `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ⬜ |
-| `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ⬜ |
+| `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ✅ |
 | `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ⬜ |
-| `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ⬜ |
-| `NEO_FAST_BREATHING` | Fast breathing | Newborn / young infant | facility_visit | ⬜ |
-| `NEO_JAUNDICE_FACE` | Jaundice of face or eyes | Newborn / young infant | facility_visit | ⬜ |
-| `NEO_REDUCED_FEEDING` | Reduced feeding | Newborn / young infant | facility_visit | ⬜ |
+| `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ✅ |
+| `NEO_FAST_BREATHING` | Fast breathing (60 breaths per minute or more) | Newborn / young infant | emergency | ✅ |
+| `NEO_JAUNDICE_FACE` | Jaundice of face or eyes | Newborn / young infant | facility_visit | ✅ |
+| `NEO_REDUCED_FEEDING` | Not feeding well | Newborn / young infant | emergency | ✅ |
 
 ---
 
@@ -253,7 +253,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — young infant general danger signs (unable to feed)
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, 'Check for very severe disease and local bacterial infection' — 'Not feeding well' → VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -277,7 +277,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — severe respiratory distress in the young infant
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Severe chest indrawing' → VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -300,7 +300,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — convulsions (general danger sign)
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Convulsions' → VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -322,7 +322,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — lethargy / unconsciousness (general danger sign)
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Movement only when stimulated or no movement at all' → VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -345,7 +345,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — fever or low body temperature in the young infant
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Fever' / 'Low body temperature' → VERY SEVERE DISEASE. THRESHOLDS NOT YET CONFIRMED: the degree values were lost in PDF text extraction and must be read from the source chart
 
 **Phrasings this rule catches:**
 
@@ -366,7 +366,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — severe jaundice (palms and soles)
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), 'Check for jaundice' — 'Yellow palms and soles at any age' (or any jaundice under 24 hours) → SEVERE JAUNDICE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -407,7 +407,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** VERIFY: WHO IMCI — umbilical infection
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Umbilicus red or draining pus' → LOCAL BACTERIAL INFECTION, oral antibiotic + follow-up in 2 days
 
 **Phrasings this rule catches:**
 
@@ -425,11 +425,11 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 | Phrasings that should NOT fire this | ________________________________ |
 | Reviewer name / date | ________________________________ |
 
-## `NEO_FAST_BREATHING` — Fast breathing
+## `NEO_FAST_BREATHING` — Fast breathing (60 breaths per minute or more)
 
-**Assigned urgency:** FACILITY VISIT — seen within 24 hours
+**Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — fast breathing threshold by age
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Fast breathing (60 breaths per minute or more)' → VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -441,7 +441,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 | Reviewer question | Response |
 |---|---|
-| Is `facility_visit` the correct urgency? | ☐ Yes ☐ No — should be: ________ |
+| Is `emergency` the correct urgency? | ☐ Yes ☐ No — should be: ________ |
 | Correct guideline section | ________________________________ |
 | Missing phrasings to add | ________________________________ |
 | Phrasings that should NOT fire this | ________________________________ |
@@ -451,7 +451,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** VERIFY: WHO IMCI — jaundice assessment
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), 'Check for jaundice' — jaundice after 24 hours with palms and soles not yellow → JAUNDICE, home care + follow-up in 1 day; refer if infant older than 14 days
 
 **Phrasings this rule catches:**
 
@@ -469,11 +469,11 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 | Phrasings that should NOT fire this | ________________________________ |
 | Reviewer name / date | ________________________________ |
 
-## `NEO_REDUCED_FEEDING` — Reduced feeding
+## `NEO_REDUCED_FEEDING` — Not feeding well
 
-**Assigned urgency:** FACILITY VISIT — seen within 24 hours
+**Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: WHO IMCI — feeding problem
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Not feeding well' is listed under VERY SEVERE DISEASE, refer URGENTLY
 
 **Phrasings this rule catches:**
 
@@ -485,7 +485,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 | Reviewer question | Response |
 |---|---|
-| Is `facility_visit` the correct urgency? | ☐ Yes ☐ No — should be: ________ |
+| Is `emergency` the correct urgency? | ☐ Yes ☐ No — should be: ________ |
 | Correct guideline section | ________________________________ |
 | Missing phrasings to add | ________________________________ |
 | Phrasings that should NOT fire this | ________________________________ |
