@@ -42,7 +42,7 @@ match whatever you decide — the report and the code must agree.
 |---|---|---|---|---|
 | 1 | LLM model ID | `claude-sonnet-4-6` | Use **`claude-sonnet-5`**; keep the ID in config (`ANTHROPIC_MODEL`) and record it on every `triage_outcomes` row | That model string is not a current Anthropic identifier and the API will reject it. Storing it per-run also makes your results reproducible and lets you report exactly which model was benchmarked |
 | 2 | Language | "Node.js / JavaScript" | **TypeScript** on Node 20 | The triage contract (urgency tier, slots, citations) is the safety-critical boundary in this system; compile-time checking on it is worth the small setup cost. If you'd rather keep Chapter 3 exactly as written, plain JS + **Zod** runtime schemas gets you most of the benefit — but do not ship an unvalidated `JSON.parse` |
-| 3 | ChromaDB hosting | "ChromaDB vector database" | Build the index **at Docker build time** and ship it read-only inside the Cloud Run image | Your knowledge base is static, small, and read-only. Running a stateful vector DB next to a scale-to-zero Cloud Run service is the single most likely source of deployment pain. §10.4 covers this, with pgvector as the fallback |
+| 3 | ~~ChromaDB hosting~~ **ChromaDB is not usable here** | "ChromaDB vector database" | **Drop ChromaDB.** Use the in-process index that is now built (`src/rag/store.ts`) | ⚠️ **Corrected after implementation.** The `chromadb` npm package is an HTTP *client* for a running Chroma server; embedded/persistent mode is Python-only. There is no way to run Chroma in-process on Node. See §10.4 (rewritten) |
 | 4 | Timeline | Implementation = weeks 7–8 | Start the **walking skeleton in sprint 2 (weeks 3–4)** | Two weeks to build WhatsApp + RAG + LLM + Postgres from zero is not realistic, and if it slips it eats your evaluation window — the part that actually earns marks. Weeks 7–8 should be feature completion and hardening, not first commit |
 
 Also verify at implementation time: the current Voyage embedding model alias (`voyage-3`
@@ -673,9 +673,31 @@ Guardrails: if the top result's distance exceeds a threshold, treat retrieval as
 failed and tell the model it has no grounding — a model that knows it is ungrounded is
 instructed (§11.1) to be more cautious, not less.
 
-### 10.4 Packaging (the Cloud Run decision)
+### 10.4 Packaging (the Cloud Run decision) — **CORRECTED**
 
-Index at build time and ship the persist directory inside the image:
+> **Correction to the original plan.** This section first proposed running ChromaDB
+> in-process from a persisted directory baked into the image. **That is not possible on
+> Node.js:** the `chromadb` npm package is an HTTP client for a Chroma *server*, and
+> embedded/`PersistentClient` mode exists only in the Python library. Verified before
+> implementation.
+>
+> The intent — a static, read-only index shipped inside the image with no stateful
+> service — is achieved instead by `MemoryVectorStore` (`src/rag/store.ts`): a prebuilt
+> JSON index loaded at boot and searched by brute-force cosine similarity. For a corpus of
+> a few thousand guideline chunks this is sub-millisecond, and it keeps the property that
+> matters most for the research: **the exact knowledge base used by an evaluation run is
+> pinned to an image digest.**
+>
+> `VectorStore` is an interface, so pgvector (the Cloud SQL instance already exists) or a
+> Chroma server can be swapped in later without touching retrieval or the orchestrator.
+>
+> **Action for the report:** update Chapter 3 §2.3 and §3.3 — replace "ChromaDB vector
+> database" with "in-process vector index (built at deploy time, shipped read-only in the
+> container image)". This is a defensible engineering decision, not a compromise: state it
+> as one, and note that removing a stateful service is what makes the prototype
+> reproducible and free to run.
+
+Index at build time and ship the index file inside the image:
 
 ```dockerfile
 # ---- stage: index ----
@@ -699,9 +721,9 @@ back up, and the exact knowledge base used for a given evaluation run is pinned 
 digest — which is genuinely useful for reproducibility. Re-indexing is a rebuild, which is
 correct for a corpus that changes twice a year.
 
-**Fallback if this proves awkward:** `pgvector` in the Cloud SQL instance you already run.
-One less moving part, at the cost of deviating from "ChromaDB" in Chapter 3. Decide in S3
-and update the report accordingly.
+**If the corpus outgrows a linear scan** (tens of thousands of chunks — far beyond the four
+guideline documents in scope), swap `MemoryVectorStore` for a `pgvector` implementation of
+the same `VectorStore` interface, using the Cloud SQL instance that already exists.
 
 ---
 
