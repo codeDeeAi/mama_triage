@@ -181,6 +181,41 @@ export class WhatsAppClient {
     });
   }
 
+  /**
+   * Send a pre-approved template.
+   *
+   * Templates are the only message type permitted outside the 24-hour customer service
+   * window, so this is how a conversation is opened with a mother who has registered but
+   * not yet written in.
+   */
+  async sendTemplate(
+    to: string,
+    templateName: string,
+    params: readonly string[],
+    language = 'en',
+  ): Promise<SendResult> {
+    return this.post({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: language },
+        ...(params.length > 0
+          ? {
+              components: [
+                {
+                  type: 'body',
+                  parameters: params.map((text) => ({ type: 'text', text })),
+                },
+              ],
+            }
+          : {}),
+      },
+    });
+  }
+
   private async post(payload: unknown): Promise<SendResult> {
     let lastError: unknown;
 

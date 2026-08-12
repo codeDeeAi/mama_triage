@@ -36,9 +36,32 @@ export interface TransportCapabilities {
   provider: string;
 }
 
+/** A pre-approved template send. */
+export interface TemplateMessage {
+  /**
+   * Provider template identifier. Meta uses the template NAME
+   * (`mama_triage_welcome_en`); KudiSMS uses a numeric `template_code` issued when the
+   * template is approved. Callers pass whichever the configured transport expects, which
+   * is why the codes live in config rather than being hard-coded here.
+   */
+  template: string;
+  /** Ordered body parameters substituted into {{1}}, {{2}}, … */
+  params: readonly string[];
+  /** BCP-47 language tag. Meta requires it; KudiSMS infers it from the template code. */
+  language?: string;
+}
+
 export interface MessageTransport {
   readonly capabilities: TransportCapabilities;
   sendText(to: string, body: string): Promise<void>;
+  /**
+   * Send a pre-approved template.
+   *
+   * Available even when `freeTextOutbound` is false — that is the whole point of a
+   * template, and it is how a conversation is opened before the 24-hour session window
+   * exists. It cannot carry a triage reply, which is novel text.
+   */
+  sendTemplate(to: string, msg: TemplateMessage): Promise<void>;
   /**
    * Present a short list of options.
    *
@@ -83,6 +106,10 @@ export class MetaCloudTransport implements MessageTransport {
   async sendOptions(to: string, body: string, options: readonly ReplyButton[]): Promise<void> {
     await this.client.sendButtons(to, body, options);
   }
+
+  async sendTemplate(to: string, msg: TemplateMessage): Promise<void> {
+    await this.client.sendTemplate(to, msg.template, msg.params, msg.language ?? 'en');
+  }
 }
 
 /**
@@ -117,6 +144,14 @@ export class TextOnlyTransport implements MessageTransport {
 
   async sendOptions(to: string, body: string, options: readonly ReplyButton[]): Promise<void> {
     await this.send(to, renderOptionsAsText(body, options));
+  }
+
+  async sendTemplate(): Promise<void> {
+    throw new Error(
+      `transport "${this.capabilities.provider}" has no template concept. ` +
+        'Templates are a WhatsApp Business API feature; a generic text transport sends ' +
+        'the message directly instead.',
+    );
   }
 }
 

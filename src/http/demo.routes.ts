@@ -24,7 +24,11 @@
 import { Router, type Request, type Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { MessageTransport, TransportCapabilities } from '../whatsapp/transport';
+import type {
+  MessageTransport,
+  TemplateMessage,
+  TransportCapabilities,
+} from '../whatsapp/transport';
 import { renderOptionsAsText } from '../whatsapp/transport';
 import type { ReplyButton } from '../whatsapp/types';
 import type { InboundMessage } from '../whatsapp/types';
@@ -57,6 +61,10 @@ export class CapturingTransport implements MessageTransport {
     this.sent.push(renderOptionsAsText(body, options));
     this.options.length = 0;
     this.options.push(...options);
+  }
+
+  async sendTemplate(_to: string, msg: TemplateMessage): Promise<void> {
+    this.sent.push(`[template: ${msg.template}] ${msg.params.join(' | ')}`);
   }
 }
 

@@ -169,16 +169,35 @@ Meta rarely explains rejections in detail. In order of likelihood:
    persists, submit the English pair first so testing is not blocked, and appeal the
    Pidgin pair separately.
 
-## After approval
+## Registration status
 
-Record the approved template names and their IDs in `.env`:
+Registered on the project WABA (Adeola Abayomi, `1049160114761094`) and recorded in
+[`src/whatsapp/templates.ts`](../src/whatsapp/templates.ts):
 
-```
-WHATSAPP_TEMPLATE_WELCOME_EN=mama_triage_welcome_en
-WHATSAPP_TEMPLATE_WELCOME_PCM=mama_triage_welcome_pcm
-WHATSAPP_TEMPLATE_FOLLOWUP_EN=mama_triage_followup_en
-WHATSAPP_TEMPLATE_FOLLOWUP_PCM=mama_triage_followup_pcm
-```
+| Template | KudiSMS `template_code` | Status |
+|---|---|---|
+| `mama_triage_welcome_en` | `9153948463` | ✅ registered |
+| `mama_triage_welcome_pcm` | `4269075219` | ✅ registered |
+| `mama_triage_followup_en` | `5929612479` | ✅ registered |
+| `mama_triage_followup_pcm` | — | ⬜ **not yet registered** |
 
-There is no template-sending code yet — nothing in the prototype initiates contact. What a
-live pilot would need is listed at the end of `prompts/whatsapp-templates.md`.
+Two things to resolve:
+
+1. **`mama_triage_followup_pcm` is missing.** Requesting it raises
+   `TemplateNotRegisteredError` rather than falling back to English, because a mother who
+   has been conversing in Pidgin should not receive an English follow-up.
+2. **`v1_mama_triage_welcome_en` (`3014705564`) also appears on the account.** If that is
+   a superseded first submission, delete it — two templates that differ only by prefix are
+   an easy thing to send by mistake.
+
+Confirm each shows **Approved**, not *Pending* or *Rejected*, before relying on it.
+
+## What these codes do and do not unlock
+
+Template sending is now implemented (`MessageTransport.sendTemplate`), so with these codes
+the onboarding and follow-up messages **can be delivered** through KudiSMS today.
+
+They do not enable the assessment. KudiSMS has no WhatsApp inbound webhook, so the
+mother's reply never reaches the server, and no free-text endpoint, so the triage
+conversation — novel text every turn — cannot be sent. `assertTransportUsable()` refuses
+to start a KudiSMS transport for that reason. See `src/whatsapp/kudisms.ts`.

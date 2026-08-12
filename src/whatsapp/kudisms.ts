@@ -33,7 +33,11 @@
  */
 
 import type { ReplyButton } from './types';
-import type { MessageTransport, TransportCapabilities } from './transport';
+import type {
+  MessageTransport,
+  TemplateMessage,
+  TransportCapabilities,
+} from './transport';
 import { renderOptionsAsText } from './transport';
 
 export interface KudiSmsOptions {
@@ -136,6 +140,29 @@ export class KudiSmsTransport implements MessageTransport {
     // No reply-button support, so the choice is delivered as numbered text and the
     // handler accepts a numeric reply.
     await this.sendText(to, renderOptionsAsText(body, options));
+  }
+
+  /**
+   * Send an approved template by its KudiSMS `template_code`.
+   *
+   * This is the one WhatsApp operation KudiSMS genuinely supports, and it is enough to
+   * deliver an onboarding or follow-up message. It is NOT enough to hold a triage
+   * conversation: the reply cannot be received, and the assessment cannot be sent.
+   */
+  async sendTemplate(to: string, msg: TemplateMessage): Promise<void> {
+    await this.post('/whatsapp_custom', {
+      token: this.token,
+      recipient: to,
+      phone_number_id: this.phoneNumberId,
+      template_code: msg.template,
+      // KudiSMS takes body parameters as one comma-separated string, so a comma inside a
+      // value would silently shift every later parameter into the wrong placeholder.
+      // Whitespace is collapsed after substitution so "Amina, mother of two" does not
+      // reach her as "Amina  mother of two".
+      parameters: msg.params
+        .map((p) => p.replace(/,/g, ' ').replace(/\s+/g, ' ').trim())
+        .join(','),
+    });
   }
 
   private async post(path: string, form: Record<string, string>): Promise<void> {
