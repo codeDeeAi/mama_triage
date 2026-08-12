@@ -154,3 +154,54 @@ describe('safety-check prompt', () => {
     expect(SAFETY).toMatch(/evidence, not direction/i);
   });
 });
+
+/**
+ * WhatsApp templates are business-initiated: they are the FIRST thing a mother reads, and
+ * they cannot be corrected once approved without re-submission. These assertions pin the
+ * safety-relevant content so it cannot be edited away while tuning the copy.
+ */
+describe('WhatsApp onboarding templates', () => {
+  const RAW = readFileSync('prompts/whatsapp-templates.md', 'utf8');
+  const TEMPLATES = flatten(RAW);
+
+  /**
+   * Only the fenced blocks are the copy that is actually submitted to Meta. The prose
+   * around them quotes a rejected draft in order to explain why it was rejected, so
+   * assertions about what must NOT be sent have to look at the bodies alone.
+   */
+  const BODIES = flatten(
+    [...RAW.matchAll(/```\n([\s\S]*?)```/g)].map((m) => m[1]).join('\n'),
+  );
+
+  it('states the system is a research prototype and not a doctor', () => {
+    expect(TEMPLATES).toMatch(/research prototype, not a doctor, and I do not give diagnoses/i);
+    expect(TEMPLATES).toMatch(/research prototype I be, I no be doctor/i);
+  });
+
+  it('names the clinical scope rather than promising general health advice', () => {
+    // The failure this guards: "ask any health-related question" invites exactly the
+    // requests ADV-013/014/015 exist to refuse.
+    expect(BODIES).toMatch(/first year after birth/i);
+    // The submitted copy must never make the open-ended promise, even though the prose
+    // above quotes it to explain why.
+    expect(BODIES).not.toMatch(/any health-related question/i);
+    expect(BODIES).not.toMatch(/chat freely/i);
+  });
+
+  it('gives the emergency instruction before inviting a conversation', () => {
+    expect(TEMPLATES).toMatch(/do not wait for me — go to your nearest health facility/i);
+    expect(TEMPLATES).toMatch(/no wait for me — go health centre wey dey near you/i);
+  });
+
+  it('provides a Pidgin template, not English only', () => {
+    expect(TEMPLATES).toMatch(/mama_triage_welcome_pcm/);
+  });
+
+  it('keeps consent separate from the template tap', () => {
+    expect(TEMPLATES).toMatch(/a tap on it is not informed consent/i);
+  });
+
+  it('requests the Utility category rather than Marketing', () => {
+    expect(TEMPLATES).toMatch(/request \*\*Utility\*\*|Category:\*\* Utility/i);
+  });
+});
