@@ -12,6 +12,9 @@ import { TaskQueue } from '../../src/http/queue';
 import { createDb, type Db } from '../../src/db/pool';
 import { RegistrationRepository } from '../../src/db/repositories/registration.repo';
 import { hashIdentity } from '../../src/privacy/hashPhone';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/web/policyVersions';
+
+const POLICY = { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
 
 const DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://mama:mama@localhost:5433/mama_triage';
@@ -66,7 +69,7 @@ describe('Telegram registration — no identifier collected', () => {
   maybe('registers with a name alone and returns a deep link', async () => {
     const res = await request(app(['telegram']))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'telegram' });
+      .send({ displayName: 'Amina', channel: 'telegram' , consent: 'yes' });
 
     expect(res.status).toBe(200);
     expect(res.body.deepLink).toMatch(/^https:\/\/t\.me\/Nne_m_BOT\?start=/);
@@ -78,7 +81,7 @@ describe('Telegram registration — no identifier collected', () => {
     // identify her.
     const res = await request(app(['telegram']))
       .post('/register/api')
-      .send({ displayName: 'Ngozi', channel: 'telegram' });
+      .send({ displayName: 'Ngozi', channel: 'telegram' , consent: 'yes' });
 
     const row = await db.one<{ identity_hash: string | null; link_token: string }>(
       `SELECT identity_hash, link_token FROM registrations WHERE id = $1`,
@@ -93,7 +96,7 @@ describe('Telegram registration — no identifier collected', () => {
     // cannot be defeated by a crafted request.
     const res = await request(app(['telegram']))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' });
+      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' , consent: 'yes' });
 
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body)).toMatch(/must not include a phone number/i);
@@ -101,7 +104,7 @@ describe('Telegram registration — no identifier collected', () => {
 
   maybe('binds the chat when she sends /start with the token, once only', async () => {
     const repo = new RegistrationRepository(db);
-    const reg = await repo.createTelegram('Chiamaka');
+    const reg = await repo.createTelegram('Chiamaka', POLICY);
     const chatHash = hashIdentity('telegram', '900555111', PEPPER);
 
     const linked = await repo.linkTelegram(reg.link_token as string, chatHash);
@@ -117,7 +120,7 @@ describe('WhatsApp registration — phone required, hashed before storage', () =
   maybe('requires a phone number', async () => {
     const res = await request(app(['whatsapp']))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'whatsapp' });
+      .send({ displayName: 'Amina', channel: 'whatsapp' , consent: 'yes' });
 
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body)).toMatch(/phone number is needed/i);
@@ -127,7 +130,7 @@ describe('WhatsApp registration — phone required, hashed before storage', () =
     const phone = '08099887766';
     const res = await request(app(['whatsapp']))
       .post('/register/api')
-      .send({ displayName: 'Halima', channel: 'whatsapp', phone });
+      .send({ displayName: 'Halima', channel: 'whatsapp', phone , consent: 'yes' });
 
     expect(res.status).toBe(200);
 
@@ -151,7 +154,7 @@ describe('WhatsApp registration — phone required, hashed before storage', () =
 
     const res = await request(app(['whatsapp'], transport))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08011122233' });
+      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08011122233' , consent: 'yes' });
 
     expect(res.body.welcomeSent).toBe(true);
     expect(sent[0]?.template).toBe('mama_triage_welcome_en');
@@ -168,7 +171,7 @@ describe('WhatsApp registration — phone required, hashed before storage', () =
 
     const res = await request(app(['whatsapp'], transport))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08011122244' });
+      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08011122244' , consent: 'yes' });
 
     expect(res.status).toBe(200);
     expect(res.body.welcomeSent).toBe(false);
@@ -180,14 +183,14 @@ describe('registration validation', () => {
   maybe('requires a display name', async () => {
     const res = await request(app(['telegram']))
       .post('/register/api')
-      .send({ displayName: '   ', channel: 'telegram' });
+      .send({ displayName: '   ', channel: 'telegram' , consent: 'yes' });
     expect(res.status).toBe(400);
   });
 
   maybe('rejects a channel this deployment does not offer', async () => {
     const res = await request(app(['telegram']))
       .post('/register/api')
-      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08012345678' });
+      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08012345678' , consent: 'yes' });
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body.issues)).toMatch(/not available/i);
   });
@@ -249,7 +252,7 @@ describe('registration form submission', () => {
       .post('/register')
       .set('HX-Request', 'true')
       .type('form')
-      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' });
+      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' , consent: 'yes' });
 
     expect(frag.status).toBe(200);
     expect(frag.text).toMatch(/Almost there, Amina/);
@@ -258,7 +261,7 @@ describe('registration form submission', () => {
     const page = await request(app(['telegram']))
       .post('/register')
       .type('form')
-      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' });
+      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' , consent: 'yes' });
 
     expect(page.status).toBe(200);
     expect(page.text).toContain('<!doctype html>'); // works without JavaScript
@@ -269,7 +272,7 @@ describe('registration form submission', () => {
       .post('/register')
       .set('HX-Request', 'true')
       .type('form')
-      .send({ displayName: 'Amina', channel: 'whatsapp' });
+      .send({ displayName: 'Amina', channel: 'whatsapp' , consent: 'yes' });
 
     expect(res.status).toBe(422);
     expect(res.text).toMatch(/A phone number is needed for WhatsApp/);
@@ -281,7 +284,7 @@ describe('registration form submission', () => {
       .post('/register')
       .set('HX-Request', 'true')
       .type('form')
-      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' });
+      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' , consent: 'yes' });
 
     expect(res.status).toBe(422);
     expect(res.text).toMatch(/must not include a phone number/i);
@@ -292,8 +295,81 @@ describe('registration form submission', () => {
       .post('/register')
       .set('HX-Request', 'true')
       .type('form')
-      .send({ displayName: 'Amina', channel: 'telegram' });
+      .send({ displayName: 'Amina', channel: 'telegram' , consent: 'yes' });
 
     expect(res.text).toMatch(/not stored any phone number or contact detail/i);
+  });
+});
+
+describe('consent gate', () => {
+  maybe('refuses to register without consent', async () => {
+    // An unchecked box is simply absent from a form post, so a missing value is a
+    // refusal. The record must not be creatable without it.
+    const res = await request(app(['telegram']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).toMatch(/agree to the terms and privacy notice/i);
+  });
+
+  maybe('refuses via the JSON API too', async () => {
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({ displayName: 'Amina', channel: 'telegram' });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/agree to the terms/i);
+  });
+
+  maybe('records which version of each notice was agreed to', async () => {
+    // "consented: true" would not survive the first revision of the wording. Storing the
+    // version means the record identifies the text actually agreed to.
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({ displayName: 'Amina', channel: 'telegram', consent: 'yes' });
+
+    const row = await db.one<{ terms_version: string; privacy_version: string }>(
+      `SELECT terms_version, privacy_version FROM registrations WHERE id = $1`,
+      [res.body.registrationId],
+    );
+    expect(row?.terms_version).toBe(TERMS_VERSION);
+    expect(row?.privacy_version).toBe(PRIVACY_VERSION);
+  });
+
+  maybe('presents the checkbox unticked, with links to both notices', async () => {
+    const res = await request(app(['telegram'])).get('/register');
+    expect(res.text).toMatch(/name="consent"/);
+    expect(res.text).not.toMatch(/name="consent"[^>]*checked/);
+    expect(res.text).toMatch(/href="\/terms"/);
+    expect(res.text).toMatch(/href="\/privacy"/);
+  });
+});
+
+describe('policy pages', () => {
+  maybe('serves the privacy notice with its version', async () => {
+    const res = await request(app(['telegram'])).get('/privacy');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(PRIVACY_VERSION);
+    expect(res.text).toMatch(/Nigeria Data Protection Act 2023/);
+    expect(res.text).toMatch(/never ask for your phone number/i);
+  });
+
+  maybe('serves the terms with its version', async () => {
+    const res = await request(app(['telegram'])).get('/terms');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(TERMS_VERSION);
+    expect(res.text).toMatch(/not a doctor/i);
+    expect(res.text).toMatch(/does not prescribe/i);
+    expect(res.text).toMatch(/not an emergency service/i);
+  });
+
+  maybe('names the third parties that see message text', async () => {
+    // Anthropic and Voyage receive message content. Not disclosing that would make the
+    // notice inaccurate.
+    const res = await request(app(['telegram'])).get('/privacy');
+    expect(res.text).toMatch(/Anthropic/);
+    expect(res.text).toMatch(/Voyage AI/);
   });
 });

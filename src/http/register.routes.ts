@@ -19,6 +19,7 @@ import { normalisePhone } from '../privacy/hashPhone';
 import type { RegistrationRepository } from '../db/repositories/registration.repo';
 import type { MessageTransport } from '../whatsapp/transport';
 import { templateIdFor } from '../whatsapp/templates';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../web/policyVersions';
 import type { Logger } from '../telemetry/logger';
 
 export interface RegisterDeps {
@@ -46,6 +47,18 @@ const RegisterRequest = z
     language: z.enum(['en', 'pcm']).default('en'),
     /** Required for WhatsApp only. */
     phone: z.string().trim().optional(),
+    /**
+     * Consent to the terms and privacy notice, and to being contacted.
+     *
+     * An unchecked checkbox is simply absent from a form post, so a missing value is a
+     * refusal rather than a malformed request. Validated here as well as in the form:
+     * the record must not be creatable without it.
+     */
+    consent: z.literal('yes', {
+      errorMap: () => ({
+        message: 'Please confirm you have read and agree to the terms and privacy notice',
+      }),
+    }),
   })
   .refine((v) => v.channel !== 'whatsapp' || (v.phone && v.phone.length >= 10), {
     message: 'A phone number is needed for WhatsApp',
@@ -57,12 +70,31 @@ const RegisterRequest = z
     path: ['phone'],
   });
 
+/** Shown on the policy pages. Bump alongside the version constants. */
+const POLICY_UPDATED = '12 August 2026';
+
 export function createRegisterRouter(deps: RegisterDeps): Router {
   const router = Router();
 
   /** Landing page. */
   router.get('/', (_req: Request, res: Response) => {
     res.render('landing', { title: 'MamaTriage — know when to worry' });
+  });
+
+  router.get('/privacy', (_req: Request, res: Response) => {
+    res.render('privacy', {
+      title: 'Privacy notice — MamaTriage',
+      privacyVersion: PRIVACY_VERSION,
+      updated: POLICY_UPDATED,
+    });
+  });
+
+  router.get('/terms', (_req: Request, res: Response) => {
+    res.render('terms', {
+      title: 'Terms of use — MamaTriage',
+      termsVersion: TERMS_VERSION,
+      updated: POLICY_UPDATED,
+    });
   });
 
   /** Registration form. */
@@ -161,6 +193,7 @@ async function register(
     }
 
     const { displayName, channel, language, phone } = parsed.data;
+    const policy = { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
 
     if (!deps.availableChannels.includes(channel)) {
       return {
@@ -178,7 +211,7 @@ async function register(
         };
       }
 
-      const reg = await deps.registrations.createTelegram(displayName);
+      const reg = await deps.registrations.createTelegram(displayName, policy);
       deps.logger.info({ registrationId: reg.id, channel }, 'registration created');
 
       return {
@@ -206,7 +239,7 @@ async function register(
       };
     }
 
-    const reg = await deps.registrations.createWhatsApp(displayName, identityHash);
+    const reg = await deps.registrations.createWhatsApp(displayName, identityHash, policy);
     deps.logger.info({ registrationId: reg.id, channel }, 'registration created');
 
     // Send the approved welcome template. The mother's reply is what opens the session

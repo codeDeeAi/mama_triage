@@ -10,6 +10,12 @@ import { randomBytes } from 'node:crypto';
 import type { Db } from '../pool';
 import type { Channel } from '../../privacy/hashPhone';
 
+/** Which versions of the notices were in force when she agreed. */
+export interface PolicyVersions {
+  termsVersion: string;
+  privacyVersion: string;
+}
+
 export interface RegistrationRow {
   id: string;
   display_name: string;
@@ -18,6 +24,8 @@ export interface RegistrationRow {
   link_token: string | null;
   linked_at: Date | null;
   contact_consent_at: Date;
+  terms_version: string | null;
+  privacy_version: string | null;
   created_at: Date;
 }
 
@@ -30,12 +38,17 @@ export class RegistrationRepository {
   constructor(private readonly db: Db) {}
 
   /** Register for WhatsApp. The phone number must already be hashed by the caller. */
-  async createWhatsApp(displayName: string, identityHash: string): Promise<RegistrationRow> {
+  async createWhatsApp(
+    displayName: string,
+    identityHash: string,
+    policy: PolicyVersions,
+  ): Promise<RegistrationRow> {
     const row = await this.db.one<RegistrationRow>(
-      `INSERT INTO registrations (display_name, channel, identity_hash)
-       VALUES ($1, 'whatsapp', $2)
+      `INSERT INTO registrations
+         (display_name, channel, identity_hash, terms_version, privacy_version)
+       VALUES ($1, 'whatsapp', $2, $3, $4)
        RETURNING *`,
-      [displayName, identityHash],
+      [displayName, identityHash, policy.termsVersion, policy.privacyVersion],
     );
     if (!row) throw new Error('failed to create registration');
     return row;
@@ -48,12 +61,16 @@ export class RegistrationRepository {
    * opens the bot. Until then the row contains a display name and nothing that could
    * reach or identify her.
    */
-  async createTelegram(displayName: string): Promise<RegistrationRow> {
+  async createTelegram(
+    displayName: string,
+    policy: PolicyVersions,
+  ): Promise<RegistrationRow> {
     const row = await this.db.one<RegistrationRow>(
-      `INSERT INTO registrations (display_name, channel, link_token)
-       VALUES ($1, 'telegram', $2)
+      `INSERT INTO registrations
+         (display_name, channel, link_token, terms_version, privacy_version)
+       VALUES ($1, 'telegram', $2, $3, $4)
        RETURNING *`,
-      [displayName, generateLinkToken()],
+      [displayName, generateLinkToken(), policy.termsVersion, policy.privacyVersion],
     );
     if (!row) throw new Error('failed to create registration');
     return row;

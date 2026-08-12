@@ -31,6 +31,8 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Deployment (Dockerfile, CI, `/admin/simulate`) | ✅ image builds and runs |
 | Web demonstration interface (`/demo`) | ✅ drives the real handler; shows the reasoning |
 | Landing page (`/`) and registration (`/register`) | ✅ EJS + Tailwind + htmx, no CDN |
+| Consent gate, privacy notice, terms of use | ✅ versioned; the accepted version is stored |
+| SMS (KudiSMS) | ⚠️ **notifications only** — no inbound webhook, so it cannot host a conversation |
 | **Telegram channel** | ✅ full two-way, free text, inline buttons — no approval needed |
 
 ### Blocked on inputs, not code
