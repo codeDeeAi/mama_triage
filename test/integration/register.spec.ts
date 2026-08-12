@@ -189,6 +189,111 @@ describe('registration validation', () => {
       .post('/register/api')
       .send({ displayName: 'Amina', channel: 'whatsapp', phone: '08012345678' });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/not available/i);
+    expect(JSON.stringify(res.body.issues)).toMatch(/not available/i);
+  });
+});
+
+describe('web pages', () => {
+  maybe('serves the landing page', async () => {
+    const res = await request(app(['telegram'])).get('/');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<!doctype html>');
+    expect(res.text).toMatch(/Know when to worry/i);
+  });
+
+  maybe('states the emergency instruction on every page', async () => {
+    // Above the fold, on every page: if someone lands here while their baby is in danger,
+    // reading about the service is the wrong next action.
+    for (const path of ['/', '/register']) {
+      const res = await request(app(['telegram'])).get(path);
+      expect(res.text).toMatch(/If this is an emergency, go to your nearest health facility now/i);
+    }
+  });
+
+  maybe('says plainly that it is a research prototype and not a doctor', async () => {
+    const res = await request(app(['telegram'])).get('/');
+    expect(res.text).toMatch(/research prototype/i);
+    expect(res.text).toMatch(/not a doctor/i);
+    expect(res.text).toMatch(/does not give diagnoses|do not give diagnoses/i);
+  });
+
+  maybe('offers only the channels this deployment has', async () => {
+    const telegramOnly = await request(app(['telegram'])).get('/register');
+    expect(telegramOnly.text).toContain('value="telegram"');
+    expect(telegramOnly.text).not.toContain('value="whatsapp"');
+
+    const both = await request(app(['telegram', 'whatsapp'])).get('/register');
+    expect(both.text).toContain('value="telegram"');
+    expect(both.text).toContain('value="whatsapp"');
+  });
+
+  maybe('says so when no channel is configured, rather than showing a dead form', async () => {
+    const res = await request(app([])).get('/register');
+    expect(res.text).toMatch(/not available right now/i);
+  });
+
+  maybe('renders a friendly 404 for a browser and JSON for the API', async () => {
+    const page = await request(app(['telegram'])).get('/nope').set('Accept', 'text/html');
+    expect(page.status).toBe(404);
+    expect(page.text).toMatch(/could not find that page/i);
+
+    const api = await request(app(['telegram'])).get('/register/api/nope');
+    expect(api.status).toBe(404);
+    expect(api.body.error).toBe('not found');
+  });
+});
+
+describe('registration form submission', () => {
+  maybe('returns the result fragment to htmx, and a full page without it', async () => {
+    const frag = await request(app(['telegram']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' });
+
+    expect(frag.status).toBe(200);
+    expect(frag.text).toMatch(/Almost there, Amina/);
+    expect(frag.text).not.toContain('<!doctype html>'); // a fragment, not a page
+
+    const page = await request(app(['telegram']))
+      .post('/register')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram', language: 'en' });
+
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('<!doctype html>'); // works without JavaScript
+  });
+
+  maybe('shows the specific validation message in the returned form', async () => {
+    const res = await request(app(['whatsapp']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'whatsapp' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).toMatch(/A phone number is needed for WhatsApp/);
+  });
+
+  maybe('refuses a phone number posted on the Telegram path', async () => {
+    // The form removes the field, but the guarantee cannot depend on the form.
+    const res = await request(app(['telegram']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).toMatch(/must not include a phone number/i);
+  });
+
+  maybe('tells a Telegram registrant that nothing identifying was stored', async () => {
+    const res = await request(app(['telegram']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram' });
+
+    expect(res.text).toMatch(/not stored any phone number or contact detail/i);
   });
 });

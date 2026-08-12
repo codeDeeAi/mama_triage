@@ -46,6 +46,35 @@ export function createApp(deps: AppDeps): Express {
 
   app.disable('x-powered-by');
 
+  // --- views ------------------------------------------------------------------------
+  // EJS has no layout mechanism, so full pages are rendered into layout.ejs by a small
+  // wrapper. Partials (used by htmx swaps) skip the layout, which is exactly the
+  // distinction htmx needs: a fragment must not arrive wrapped in <html>.
+  app.set('view engine', 'ejs');
+  app.set('views', join(process.cwd(), 'views'));
+
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    const render = res.render.bind(res);
+    res.render = ((view: string, locals?: Record<string, unknown>, cb?: unknown) => {
+      if (typeof cb === 'function' || view.startsWith('partials/')) {
+        return render(view, locals as never, cb as never);
+      }
+      return render(view, locals as never, (err: Error | null, html: string) => {
+        if (err) {
+          deps.logger.error({ err, view }, 'view render failed');
+          res.status(500).send('Something went wrong.');
+          return;
+        }
+        render('layout', { ...(locals ?? {}), body: html } as never);
+      });
+    }) as typeof res.render;
+    next();
+  });
+
+  app.use('/assets', express.static(join(process.cwd(), 'public', 'assets'), {
+    maxAge: '1h',
+  }));
+
   // --- webhook: raw body, then signature verification -------------------------------
   app.use(
     '/webhook',
@@ -64,8 +93,11 @@ export function createApp(deps: AppDeps): Express {
     app.use(createWebhookRouter(deps));
   }
 
-  // --- everything else: JSON --------------------------------------------------------
+  // --- everything else: JSON and HTML form bodies -----------------------------------
   app.use(express.json({ limit: '256kb' }));
+  // HTML forms post application/x-www-form-urlencoded. Without this the registration
+  // form arrives empty and every submission fails validation for the wrong reason.
+  app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 
   // Telegram authenticates with a shared secret header rather than a body signature, so
   // it needs the parsed JSON body and mounts after the parser — unlike the WhatsApp
@@ -104,7 +136,6 @@ export function createApp(deps: AppDeps): Express {
 
   if (deps.register) {
     app.use(createRegisterRouter({ ...deps.register, logger: deps.logger }));
-    app.use('/register', express.static(join(process.cwd(), 'public', 'register')));
   }
 
   if (deps.demo?.enabled) {
@@ -112,8 +143,16 @@ export function createApp(deps: AppDeps): Express {
     app.use('/demo', express.static(join(process.cwd(), 'public', 'demo')));
   }
 
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({ error: 'not found' });
+  app.use((req: Request, res: Response) => {
+    if (req.path.includes('/api') || req.accepts(['html', 'json']) === 'json') {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
+    res.status(404).render('error', {
+      title: 'Page not found — MamaTriage',
+      heading: 'We could not find that page',
+      message: 'The link may be old or mistyped.',
+    });
   });
 
   // Express 4 identifies an error handler by its arity — `next` must stay in the

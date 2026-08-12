@@ -15,8 +15,12 @@ RUN npm ci
 FROM node:20-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json tsconfig.json tsconfig.build.json ./
+COPY package.json package-lock.json tsconfig.json tsconfig.build.json tailwind.config.js ./
 COPY src ./src
+COPY views ./views
+COPY public ./public
+# Builds the CSS as well as the TypeScript: Tailwind output is generated at image build
+# time and served from the same origin, not fetched from a CDN at runtime.
 RUN npm run build
 
 # ---- knowledge index --------------------------------------------------------
@@ -51,7 +55,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/public ./public
 COPY --from=index /app/knowledge/index ./knowledge/index
+COPY views ./views
 COPY prompts ./prompts
 COPY migrations ./migrations
 

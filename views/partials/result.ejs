@@ -1,0 +1,43 @@
+<div id="form-region" class="space-y-6">
+  <% if (channel === 'telegram') { %>
+    <div class="card border-telegram/30 bg-sky-50 text-center">
+      <div class="text-4xl" aria-hidden="true">✈️</div>
+      <h2 class="mt-3 text-xl font-bold">Almost there, <%= displayName %>.</h2>
+      <p class="mt-2 text-slate-700"><%= instructions %></p>
+
+      <a href="<%= deepLink %>"
+         class="btn mt-5 w-full bg-telegram text-white hover:bg-sky-700 focus:ring-telegram/30">
+        Open Telegram
+      </a>
+
+      <p class="mt-4 text-sm text-slate-600">
+        If the button does not work, open Telegram, search for
+        <strong>@<%= botUsername %></strong>, and press START.
+      </p>
+
+      <p class="mt-4 border-t border-sky-200 pt-4 text-xs text-slate-500">
+        We have not stored any phone number or contact detail. Your chat is linked only
+        when you open the bot.
+      </p>
+    </div>
+  <% } else { %>
+    <div class="card <%= welcomeSent ? 'border-whatsapp/30 bg-green-50' : 'border-amber-200 bg-amber-50' %> text-center">
+      <div class="text-4xl" aria-hidden="true"><%= welcomeSent ? '✅' : '⚠️' %></div>
+      <h2 class="mt-3 text-xl font-bold">Thank you, <%= displayName %>.</h2>
+      <p class="mt-2 text-slate-700"><%= instructions %></p>
+
+      <p class="mt-4 border-t <%= welcomeSent ? 'border-green-200' : 'border-amber-200' %> pt-4 text-xs text-slate-500">
+        Your number was scrambled before it was stored. It is not kept in readable form.
+      </p>
+    </div>
+  <% } %>
+
+  <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+    <strong>Remember:</strong> this is a research prototype, not a doctor. If you think
+    something is an emergency, go to your nearest health facility straight away.
+  </div>
+
+  <p class="text-center">
+    <a href="/" class="text-sm font-medium text-brand underline">Back to the home page</a>
+  </p>
+</div>

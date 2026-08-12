@@ -708,9 +708,16 @@ export function getRule(id: string): RedFlagRule | undefined {
   return RED_FLAGS.find((r) => r.id === id);
 }
 
-/** Rules still awaiting clinical reviewer sign-off. */
-export function unverifiedRules(): RedFlagRule[] {
-  return RED_FLAGS.filter((r) => !r.verified);
+/**
+ * Rules still awaiting clinical reviewer sign-off.
+ *
+ * `rules` defaults to the live register; it is a parameter only so the guard below can be
+ * exercised against a register that still has pending rules. `RED_FLAGS` is frozen, and
+ * every rule in it currently carries a decision, so there is otherwise no way to test the
+ * failure path of a check whose whole job is to fail.
+ */
+export function unverifiedRules(rules: readonly RedFlagRule[] = RED_FLAGS): RedFlagRule[] {
+  return rules.filter((r) => !r.verified);
 }
 
 /**
@@ -722,8 +729,8 @@ export function unverifiedRules(): RedFlagRule[] {
  * simulated placeholder read as clinical validation in the report, so the distinction is
  * surfaced separately and printed on every generated report.
  */
-export function simulatedRules(): RedFlagRule[] {
-  return RED_FLAGS.filter((r) => r.verified && /SIMULATED REVIEW/i.test(r.verifiedBy ?? ''));
+export function simulatedRules(rules: readonly RedFlagRule[] = RED_FLAGS): RedFlagRule[] {
+  return rules.filter((r) => r.verified && /SIMULATED REVIEW/i.test(r.verifiedBy ?? ''));
 }
 
 /** True when every verified rule is backed by a real source rather than a placeholder. */
@@ -737,8 +744,8 @@ export function registerFullyAssured(): boolean {
  * Called by the evaluation runner so that unverified clinical logic cannot silently
  * produce results that end up in the report (plan section 9.1).
  */
-export function assertRegisterVerified(): void {
-  const pending = unverifiedRules();
+export function assertRegisterVerified(rules: readonly RedFlagRule[] = RED_FLAGS): void {
+  const pending = unverifiedRules(rules);
   if (pending.length > 0) {
     throw new Error(
       `Red-flag register has ${pending.length} unverified rule(s); clinical reviewer ` +

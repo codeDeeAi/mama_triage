@@ -1,0 +1,87 @@
+<div id="form-region" class="space-y-7">
+  <div>
+    <label class="label" for="displayName">
+      What should we call you?
+      <span class="hint">A first name or nickname is fine. We do not need your real name.</span>
+    </label>
+    <input class="field mt-2" type="text" id="displayName" name="displayName"
+           maxlength="80" autocomplete="given-name" required
+           value="<%= typeof values !== 'undefined' ? (values.displayName || '') : '' %>" />
+  </div>
+
+  <fieldset>
+    <legend class="label">Where would you like to chat?</legend>
+
+    <div class="mt-2 grid gap-3 sm:grid-cols-2">
+      <% if (channels.includes('telegram')) { %>
+      <label class="channel-option cursor-pointer rounded-xl border-2 border-ink-line bg-white p-4 transition hover:border-telegram has-[:checked]:border-telegram has-[:checked]:bg-sky-50">
+        <input type="radio" name="channel" value="telegram" class="sr-only peer" required />
+        <span class="flex items-center gap-2 font-semibold">
+          <span aria-hidden="true">✈️</span> Telegram
+        </span>
+        <span class="mt-1 block text-sm text-slate-600">
+          No phone number needed
+        </span>
+        <span class="mt-2 block text-xs font-medium text-telegram">
+          Most private option
+        </span>
+      </label>
+      <% } %>
+
+      <% if (channels.includes('whatsapp')) { %>
+      <label class="channel-option cursor-pointer rounded-xl border-2 border-ink-line bg-white p-4 transition hover:border-whatsapp has-[:checked]:border-whatsapp has-[:checked]:bg-green-50">
+        <input type="radio" name="channel" value="whatsapp" class="sr-only peer" required />
+        <span class="flex items-center gap-2 font-semibold">
+          <span aria-hidden="true">💬</span> WhatsApp
+        </span>
+        <span class="mt-1 block text-sm text-slate-600">
+          We will need your number
+        </span>
+      </label>
+      <% } %>
+    </div>
+  </fieldset>
+
+  <!--
+    The phone field is not merely hidden for Telegram — it is removed from the form,
+    so a number cannot be submitted on a channel that does not need one. The server
+    rejects it too; this is the visible half of the same rule.
+  -->
+  <div id="phone-block" class="hidden">
+    <label class="label" for="phone">
+      Your WhatsApp number
+      <span class="hint">
+        Only needed for WhatsApp, so we can message you. It is scrambled before it is
+        stored and never kept in readable form.
+      </span>
+    </label>
+    <input class="field mt-2" type="tel" id="phone" name="phone" disabled
+           inputmode="tel" autocomplete="tel" placeholder="0801 234 5678" />
+  </div>
+
+  <div>
+    <label class="label" for="language">Which language do you prefer?</label>
+    <select class="field mt-2" id="language" name="language">
+      <option value="en">English</option>
+      <option value="pcm">Nigerian Pidgin</option>
+    </select>
+  </div>
+
+  <% if (typeof errors !== 'undefined' && errors.length) { %>
+    <div class="rounded-xl border border-red-200 bg-red-50 p-4">
+      <ul class="space-y-1 text-sm text-red-900">
+        <% errors.forEach(function (e) { %><li><%= e.message %></li><% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <button type="submit" class="btn-primary w-full">
+    <span class="htmx-indicator-hide">Continue</span>
+    <span id="spinner" class="htmx-indicator">Please wait…</span>
+  </button>
+
+  <p class="text-center text-xs text-slate-500">
+    By continuing you agree to be contacted on the channel you chose. You will be
+    asked separately before any conversation is stored.
+  </p>
+</div>

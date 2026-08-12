@@ -1,0 +1,53 @@
+<section class="mx-auto max-w-readable px-5 py-12">
+  <h1 class="text-3xl font-bold tracking-tight">Join MamaTriage</h1>
+  <p class="mt-2 text-slate-600">
+    Check danger signs for you and your baby in the first year after birth.
+  </p>
+
+  <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    <strong>This is a research prototype.</strong> It is not a doctor and does not give
+    diagnoses. If you think something is an emergency, go to your nearest health facility
+    straight away.
+  </div>
+
+  <% if (channels.length === 0) { %>
+    <div class="card mt-8 border-red-200 bg-red-50">
+      <p class="font-semibold text-red-900">Registration is not available right now.</p>
+      <p class="mt-1 text-sm text-red-800">
+        No messaging channel is configured on this deployment.
+      </p>
+    </div>
+  <% } else { %>
+
+  <!--
+    htmx posts the form and swaps in a server-rendered result, so the success and error
+    states are the same templates the server already owns. No duplicated rendering logic
+    in the browser.
+  -->
+  <form id="register-form"
+        class="mt-8 space-y-7"
+        hx-post="/register"
+        hx-target="#form-region"
+        hx-swap="outerHTML"
+        hx-indicator="#spinner">
+
+    <%- include('partials/form') %>
+  </form>
+  <% } %>
+</section>
+
+<script>
+  // Toggling `disabled` rather than just hiding: a disabled input is not submitted at
+  // all, so the phone number cannot reach the server on the Telegram path even if the
+  // field was filled in before switching channel.
+  document.addEventListener('change', function (e) {
+    if (e.target.name !== 'channel') return;
+    var block = document.getElementById('phone-block');
+    var input = document.getElementById('phone');
+    var isWhatsApp = e.target.value === 'whatsapp';
+    block.classList.toggle('hidden', !isWhatsApp);
+    input.disabled = !isWhatsApp;
+    input.required = isWhatsApp;
+    if (!isWhatsApp) input.value = '';
+  });
+</script>

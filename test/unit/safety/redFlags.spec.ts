@@ -8,6 +8,7 @@ import {
   unverifiedRules,
   simulatedRules,
   registerFullyAssured,
+  type RedFlagRule,
 } from '../../../src/safety/redFlags';
 import type { Slots } from '../../../src/types';
 
@@ -80,7 +81,8 @@ describe('clinical verification gate', () => {
   it('still blocks when a rule is reverted to unverified', () => {
     // The gate itself must keep working; it is only quiet because every rule now has a
     // decision, not because it was disabled.
-    const withPending = [...RED_FLAGS.map((r) => ({ ...r })), { ...RED_FLAGS[0]!, id: 'TEST_PENDING', verified: false }];
+    const pending = { ...RED_FLAGS[0]!, id: 'TEST_PENDING', verified: false };
+    const withPending = [...RED_FLAGS, pending];
     expect(withPending.filter((r) => !r.verified).map((r) => r.id)).toEqual(['TEST_PENDING']);
   });
 });
@@ -437,5 +439,35 @@ describe('assurance level — simulated versus traced', () => {
 
   it('lets evaluation runs proceed, since every rule now has a decision', () => {
     expect(() => assertRegisterVerified()).not.toThrow();
+  });
+
+  it('blocks an evaluation run while any rule lacks a decision', () => {
+    // The live register is fully decided, so the guard is checked against a stand-in that
+    // still has pending rules. If this ever stops throwing, an unreviewed rule could reach
+    // a reported result unnoticed.
+    const decided = RED_FLAGS[0]!;
+    const pending: RedFlagRule[] = [
+      { ...decided, id: 'PENDING_A', verified: false, verifiedBy: undefined },
+      { ...decided, id: 'PENDING_B', verified: false, verifiedBy: undefined },
+    ];
+
+    expect(unverifiedRules(pending).map((r) => r.id)).toEqual(['PENDING_A', 'PENDING_B']);
+    expect(() => assertRegisterVerified(pending)).toThrow(/2 unverified rule\(s\)/);
+    expect(() => assertRegisterVerified(pending)).toThrow(/PENDING_A, PENDING_B/);
+    expect(() => assertRegisterVerified([decided])).not.toThrow();
+  });
+
+  it('counts a rule as simulated only when it is verified and says so', () => {
+    // Guards the two states the live register never reaches: a rule with no decision yet,
+    // and a rule marked verified but carrying no record of who verified it. Neither may be
+    // reported as a simulated review — the first is pending, the second is unexplained.
+    const base = RED_FLAGS[0]!;
+    const standIn: RedFlagRule[] = [
+      { ...base, id: 'PENDING', verified: false, verifiedBy: 'SIMULATED REVIEW' },
+      { ...base, id: 'NO_RECORD', verified: true, verifiedBy: undefined },
+      { ...base, id: 'SIMULATED', verified: true, verifiedBy: 'SIMULATED REVIEW — stand-in' },
+    ];
+
+    expect(simulatedRules(standIn).map((r) => r.id)).toEqual(['SIMULATED']);
   });
 });

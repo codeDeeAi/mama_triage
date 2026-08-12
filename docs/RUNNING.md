@@ -64,7 +64,8 @@ npm start                 # or: npm run build && node dist/index.js
 
 | URL | What it is |
 |---|---|
-| `http://localhost:8080/register/` | Registration page — choose Telegram or WhatsApp |
+| `http://localhost:8080/` | Landing page |
+| `http://localhost:8080/register` | Registration — choose Telegram or WhatsApp |
 | `http://localhost:8080/demo/` | Chat demo with an inspector showing *why* it answered |
 | `http://localhost:8080/healthz` | Liveness |
 | `http://localhost:8080/readyz` | Readiness, including the database |
@@ -98,6 +99,8 @@ Restart. The log should read `assessment enabled` with a chunk count.
 | `npm run eval:smoke` | **Safety gate** — fails if the deterministic layer misses an emergency |
 | `npm run telegram:poll` | Bot on your phone, no deployment |
 | `npm run docs:register` | Regenerate the clinician sign-off pack |
+| `npm run css` | Rebuild the stylesheet (also runs inside `npm run build`) |
+| `npm run css:watch` | Rebuild CSS on change, while editing `views/` |
 | `npm run db:down` | Stop PostgreSQL |
 
 ### Troubleshooting
