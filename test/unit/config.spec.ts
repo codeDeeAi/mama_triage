@@ -22,7 +22,7 @@ describe('parseConfig — happy path', () => {
     const cfg = parseConfig(validEnv());
     expect(cfg.port).toBe(8080);
     expect(cfg.databaseUrl).toContain('mama_triage');
-    expect(cfg.whatsapp.appSecret).toBe('app-secret');
+    expect(cfg.whatsapp?.appSecret).toBe('app-secret');
   });
 
   it('applies documented defaults', () => {
@@ -51,10 +51,6 @@ describe('parseConfig — happy path', () => {
 describe('parseConfig — required secrets', () => {
   it.each([
     'DATABASE_URL',
-    'WHATSAPP_TOKEN',
-    'WHATSAPP_PHONE_NUMBER_ID',
-    'WHATSAPP_VERIFY_TOKEN',
-    'WHATSAPP_APP_SECRET',
     'ANTHROPIC_API_KEY',
     'VOYAGE_API_KEY',
     'PHONE_HASH_PEPPER',
@@ -65,10 +61,11 @@ describe('parseConfig — required secrets', () => {
     expect(() => parseConfig(env)).toThrow(new RegExp(key));
   });
 
-  it('names the security consequence for the webhook secret', () => {
+  it('names the security consequence when the webhook secret is missing', () => {
     const env = validEnv();
     delete env.WHATSAPP_APP_SECRET;
     expect(() => parseConfig(env)).toThrow(/unauthenticated/i);
+    expect(() => parseConfig(env)).toThrow(/drive the triage engine/i);
   });
 });
 
@@ -116,5 +113,59 @@ describe('parseConfig — validation', () => {
     const env = validEnv();
     delete env.DATABASE_URL;
     expect(() => parseConfig(env)).toThrow(/1 problem\b/);
+  });
+});
+
+describe('messaging channels — WhatsApp, Telegram, or both', () => {
+  const telegramOnly = (): NodeJS.ProcessEnv => {
+    const env = validEnv();
+    delete env.WHATSAPP_TOKEN;
+    delete env.WHATSAPP_PHONE_NUMBER_ID;
+    delete env.WHATSAPP_VERIFY_TOKEN;
+    delete env.WHATSAPP_APP_SECRET;
+    env.TELEGRAM_BOT_TOKEN = '123:ABC';
+    env.TELEGRAM_WEBHOOK_SECRET = 'a-shared-secret';
+    return env;
+  };
+
+  it('accepts Telegram alone', () => {
+    const cfg = parseConfig(telegramOnly());
+    expect(cfg.telegram?.botToken).toBe('123:ABC');
+    expect(cfg.whatsapp).toBeUndefined();
+  });
+
+  it('accepts WhatsApp alone', () => {
+    const cfg = parseConfig(validEnv());
+    expect(cfg.whatsapp).toBeDefined();
+    expect(cfg.telegram).toBeUndefined();
+  });
+
+  it('accepts both, which is what a platform choice at registration needs', () => {
+    const env = { ...validEnv(), TELEGRAM_BOT_TOKEN: '123:ABC', TELEGRAM_WEBHOOK_SECRET: 's' };
+    const cfg = parseConfig(env);
+    expect(cfg.whatsapp).toBeDefined();
+    expect(cfg.telegram).toBeDefined();
+  });
+
+  it('refuses to start with no channel at all', () => {
+    const env = telegramOnly();
+    delete env.TELEGRAM_BOT_TOKEN;
+    delete env.TELEGRAM_WEBHOOK_SECRET;
+    expect(() => parseConfig(env)).toThrow(/No messaging channel configured/i);
+    expect(() => parseConfig(env)).toThrow(/cannot receive a single message/i);
+  });
+
+  it('rejects a partially configured Telegram channel', () => {
+    // Half-configured would start and then fail on the first update. The webhook secret
+    // is what authenticates the endpoint, so its absence is not a detail.
+    const env = telegramOnly();
+    delete env.TELEGRAM_WEBHOOK_SECRET;
+    expect(() => parseConfig(env)).toThrow(/Telegram is partially configured/i);
+    expect(() => parseConfig(env)).toThrow(/unauthenticated/i);
+  });
+
+  it('carries the bot username for the registration deep link', () => {
+    const cfg = parseConfig({ ...telegramOnly(), TELEGRAM_BOT_USERNAME: 'MamaTriageBot' });
+    expect(cfg.telegram?.botUsername).toBe('MamaTriageBot');
   });
 });

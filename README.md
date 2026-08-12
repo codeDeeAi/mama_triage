@@ -30,6 +30,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Evaluation harness (Objective 4) | ✅ metrics, runner, report generator |
 | Deployment (Dockerfile, CI, `/admin/simulate`) | ✅ image builds and runs |
 | Web demonstration interface (`/demo`) | ✅ drives the real handler; shows the reasoning |
+| **Telegram channel** | ✅ full two-way, free text, inline buttons — no approval needed |
 
 ### Blocked on inputs, not code
 
@@ -38,12 +39,31 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | **Clinical reviewer sign-off** | 12 of 20 rules are traced to published guidelines; **8 maternal rules carry a SIMULATED review** — the author standing in for a clinician. Every generated report names them and marks derived figures provisional. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
 | **FMOH BEmONC / newborn-care guidelines** | Not publicly available; the PPH guideline is in, the rest of the maternal rules have no source document. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
 | **Scenario bank adjudication** | 65 scenarios committed. Neonatal golds are WHO-traced; the 29 maternal golds are marked `PENDING CLINICAL ADJUDICATION`. |
-| **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: its API has no inbound WhatsApp webhook and sends pre-approved templates only, never free text. Meta's Cloud API test number (free, 5 recipients) is the working path. The `/demo` interface keeps everything else unblocked meanwhile. |
+| **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: no inbound WhatsApp webhook, and pre-approved templates only, never free text. Meta's Cloud API is the working WhatsApp path. **Telegram is now supported and needs no approval at all** — see below. |
 
 Full build plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
 Hazards and residual risk: [`docs/safety/clinical-safety-case.md`](docs/safety/clinical-safety-case.md).
 
 ---
+
+## Channels
+
+The system runs over **WhatsApp**, **Telegram**, or both — configured independently, with
+the mother choosing at registration. Adding Telegram required no change to the
+orchestrator, the safety layer or the renderer: every channel implements one
+`MessageTransport` contract.
+
+| | WhatsApp (Meta) | Telegram | KudiSMS |
+|---|---|---|---|
+| Inbound messages | ✅ | ✅ | ❌ none documented |
+| Free-text outbound | ✅ in 24h window | ✅ always | ❌ templates only |
+| Reply buttons | ✅ | ✅ inline keyboard | ❌ |
+| Setup | business verification, template approval | token from @BotFather, ~2 min | account only |
+| **Usable for triage** | **yes** | **yes** | **no** |
+
+`assertTransportUsable()` refuses to start on a channel lacking inbound or free-text
+outbound, rather than presenting a working-looking service that silently drops every
+message a mother sends.
 
 ## Architecture in one paragraph
 

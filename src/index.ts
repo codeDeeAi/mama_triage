@@ -21,6 +21,8 @@ import {
 import { TaskQueue } from './http/queue';
 import { createApp } from './http/app';
 import { createMessageHandler } from './orchestrator/handler';
+import { TelegramClient } from './telegram/client';
+import { TelegramTransport } from './telegram/transport';
 import { MemoryVectorStore } from './rag/store';
 import { VoyageEmbedder } from './rag/embed';
 import { Retriever } from './rag/retrieve';
@@ -96,16 +98,35 @@ async function main(): Promise<void> {
     );
   }
 
-  const whatsapp = new MetaCloudTransport(
-    new WhatsAppClient({
-      token: config.whatsapp.token,
-      phoneNumberId: config.whatsapp.phoneNumberId,
-    }),
+  // One transport per configured channel. A mother chooses her channel at registration,
+  // and her session is keyed by channel + identifier, so both can run side by side.
+  const transports = new Map<string, MessageTransport>();
+
+  if (config.whatsapp) {
+    const wa = new MetaCloudTransport(
+      new WhatsAppClient({
+        token: config.whatsapp.token,
+        phoneNumberId: config.whatsapp.phoneNumberId,
+      }),
+    );
+    // Fails fast on a send-only provider rather than silently dropping every inbound
+    // message while appearing to work.
+    assertTransportUsable(wa);
+    transports.set('whatsapp', wa);
+  }
+
+  let telegramClient: TelegramClient | undefined;
+  if (config.telegram) {
+    telegramClient = new TelegramClient({ token: config.telegram.botToken });
+    const tg = new TelegramTransport(telegramClient);
+    assertTransportUsable(tg);
+    transports.set('telegram', tg);
+  }
+
+  logger.info(
+    { channels: [...transports.keys()] },
+    'messaging channels ready',
   );
-  // Fails fast on a send-only provider rather than silently dropping every inbound
-  // message while appearing to work.
-  assertTransportUsable(whatsapp);
-  logger.info({ transport: whatsapp.capabilities }, 'messaging transport ready');
 
   const queue = new TaskQueue({
     concurrency: 4,
@@ -127,11 +148,27 @@ async function main(): Promise<void> {
       ...(assessment ? { assessment } : {}),
     });
 
-  const handleMessage = makeHandler(whatsapp);
+  const handleMessage = transports.has('whatsapp')
+    ? makeHandler(transports.get('whatsapp') as MessageTransport)
+    : async (): Promise<void> => undefined;
+
+  const handleTelegram = transports.has('telegram')
+    ? makeHandler(transports.get('telegram') as MessageTransport)
+    : undefined;
 
   const app = createApp({
-    appSecret: config.whatsapp.appSecret,
-    verifyToken: config.whatsapp.verifyToken,
+    appSecret: config.whatsapp?.appSecret ?? '',
+    verifyToken: config.whatsapp?.verifyToken ?? '',
+    whatsappEnabled: Boolean(config.whatsapp),
+    ...(config.telegram && telegramClient && handleTelegram
+      ? {
+          telegram: {
+            secretToken: config.telegram.webhookSecret,
+            client: telegramClient,
+            handleMessage: handleTelegram,
+          },
+        }
+      : {}),
     db,
     events,
     audit,

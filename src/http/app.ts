@@ -17,6 +17,7 @@ import { verifySignature } from './middleware/verifySignature';
 import { createWebhookRouter, type WebhookDeps } from './webhook.routes';
 import { createAdminRouter, type AdminDeps } from './admin.routes';
 import { createDemoRouter, type DemoDeps } from './demo.routes';
+import { createTelegramRouter, type TelegramWebhookDeps } from './telegram.routes';
 import { join } from 'node:path';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
@@ -31,6 +32,10 @@ export interface AppDeps extends WebhookDeps {
   admin?: Omit<AdminDeps, 'logger'>;
   /** Browser demonstration interface. Omit to disable it entirely. */
   demo?: Omit<DemoDeps, 'logger'>;
+  /** False when no WhatsApp credentials are configured; the routes are then not mounted. */
+  whatsappEnabled?: boolean;
+  /** Telegram channel. Omit to run WhatsApp only. */
+  telegram?: Pick<TelegramWebhookDeps, 'secretToken' | 'client' | 'handleMessage'>;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -52,10 +57,29 @@ export function createApp(deps: AppDeps): Express {
     },
   );
 
-  app.use(createWebhookRouter(deps));
+  if (deps.whatsappEnabled !== false) {
+    app.use(createWebhookRouter(deps));
+  }
 
   // --- everything else: JSON --------------------------------------------------------
   app.use(express.json({ limit: '256kb' }));
+
+  // Telegram authenticates with a shared secret header rather than a body signature, so
+  // it needs the parsed JSON body and mounts after the parser — unlike the WhatsApp
+  // webhook, which must see raw bytes.
+  if (deps.telegram) {
+    app.use(
+      createTelegramRouter({
+        ...deps.telegram,
+        events: deps.events,
+        queue: deps.queue,
+        logger: deps.logger,
+        onReject: (reason) => {
+          void deps.audit.record('WEBHOOK_REJECTED', { channel: 'telegram', reason });
+        },
+      }),
+    );
+  }
 
   /** Liveness: the process is up. Deliberately does not touch the database. */
   app.get('/healthz', (_req: Request, res: Response) => {

@@ -43,13 +43,18 @@ const schema = z.object({
 
   DATABASE_URL: requiredString('DATABASE_URL is required'),
 
-  // WhatsApp Business Cloud API
-  WHATSAPP_TOKEN: requiredString('WHATSAPP_TOKEN is required'),
-  WHATSAPP_PHONE_NUMBER_ID: requiredString('WHATSAPP_PHONE_NUMBER_ID is required'),
-  WHATSAPP_VERIFY_TOKEN: requiredString('WHATSAPP_VERIFY_TOKEN is required'),
-  WHATSAPP_APP_SECRET: requiredString(
-    'WHATSAPP_APP_SECRET is required — without it the webhook is unauthenticated',
-  ),
+  // WhatsApp Business Cloud API. Optional as a group: a deployment may run Telegram
+  // only. Cross-field validation below requires at least one channel to be configured.
+  WHATSAPP_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
+
+  // Telegram Bot API. TELEGRAM_WEBHOOK_SECRET is the shared secret Telegram echoes on
+  // every update; without it the webhook is unauthenticated.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
 
   // Anthropic
   ANTHROPIC_API_KEY: requiredString('ANTHROPIC_API_KEY is required'),
@@ -86,11 +91,24 @@ export interface Config {
   port: number;
   logLevel: RawConfig['LOG_LEVEL'];
   databaseUrl: string;
-  whatsapp: {
+  /**
+   * Configured channels. At least one is required.
+   *
+   * A deployment may run WhatsApp only, Telegram only, or both — the mother chooses at
+   * registration. Absent channels are `undefined` rather than blank strings, so a
+   * half-configured channel cannot start and then fail on first message.
+   */
+  whatsapp?: {
     token: string;
     phoneNumberId: string;
     verifyToken: string;
     appSecret: string;
+  };
+  telegram?: {
+    botToken: string;
+    webhookSecret: string;
+    /** Used to build the t.me deep link shown at registration. */
+    botUsername?: string;
   };
   llm: {
     apiKey: string;
@@ -132,18 +150,74 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const c = result.data;
+
+  // A channel is all-or-nothing: partial credentials would start a service that fails on
+  // the first message rather than at boot.
+  const whatsappKeys = [
+    c.WHATSAPP_TOKEN,
+    c.WHATSAPP_PHONE_NUMBER_ID,
+    c.WHATSAPP_VERIFY_TOKEN,
+    c.WHATSAPP_APP_SECRET,
+  ];
+  const whatsappSet = whatsappKeys.filter(Boolean).length;
+  if (whatsappSet > 0 && whatsappSet < whatsappKeys.length) {
+    throw new ConfigError(
+      'Invalid configuration (1 problem):\n' +
+        '  - WhatsApp is partially configured. Set all of WHATSAPP_TOKEN, ' +
+        'WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN and WHATSAPP_APP_SECRET, or ' +
+        'none of them.' +
+        (c.WHATSAPP_APP_SECRET
+          ? ''
+          : ' WHATSAPP_APP_SECRET in particular is missing — without it the webhook is ' +
+            'unauthenticated and anyone who learns the URL can drive the triage engine.'),
+    );
+  }
+
+  const telegramKeys = [c.TELEGRAM_BOT_TOKEN, c.TELEGRAM_WEBHOOK_SECRET];
+  const telegramSet = telegramKeys.filter(Boolean).length;
+  if (telegramSet > 0 && telegramSet < telegramKeys.length) {
+    throw new ConfigError(
+      'Invalid configuration (1 problem):\n' +
+        '  - Telegram is partially configured. Set both TELEGRAM_BOT_TOKEN and ' +
+        'TELEGRAM_WEBHOOK_SECRET, or neither. Without the webhook secret the endpoint ' +
+        'is unauthenticated.',
+    );
+  }
+
+  if (whatsappSet === 0 && telegramSet === 0) {
+    throw new ConfigError(
+      'Invalid configuration (1 problem):\n' +
+        '  - No messaging channel configured. Set the WHATSAPP_* variables, the ' +
+        'TELEGRAM_* variables, or both. A triage service with no channel cannot ' +
+        'receive a single message.',
+    );
+  }
+
   return {
     env: c.NODE_ENV,
     isProduction: c.NODE_ENV === 'production',
     port: c.PORT,
     logLevel: c.LOG_LEVEL,
     databaseUrl: c.DATABASE_URL,
-    whatsapp: {
-      token: c.WHATSAPP_TOKEN,
-      phoneNumberId: c.WHATSAPP_PHONE_NUMBER_ID,
-      verifyToken: c.WHATSAPP_VERIFY_TOKEN,
-      appSecret: c.WHATSAPP_APP_SECRET,
-    },
+    ...(whatsappSet > 0
+      ? {
+          whatsapp: {
+            token: c.WHATSAPP_TOKEN as string,
+            phoneNumberId: c.WHATSAPP_PHONE_NUMBER_ID as string,
+            verifyToken: c.WHATSAPP_VERIFY_TOKEN as string,
+            appSecret: c.WHATSAPP_APP_SECRET as string,
+          },
+        }
+      : {}),
+    ...(telegramSet > 0
+      ? {
+          telegram: {
+            botToken: c.TELEGRAM_BOT_TOKEN as string,
+            webhookSecret: c.TELEGRAM_WEBHOOK_SECRET as string,
+            ...(c.TELEGRAM_BOT_USERNAME ? { botUsername: c.TELEGRAM_BOT_USERNAME } : {}),
+          },
+        }
+      : {}),
     llm: {
       apiKey: c.ANTHROPIC_API_KEY,
       model: c.ANTHROPIC_MODEL,
