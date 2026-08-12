@@ -13,7 +13,11 @@ import { MessageRepository } from './db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from './db/repositories/event.repo';
 import { OutcomeRepository } from './db/repositories/outcome.repo';
 import { WhatsAppClient } from './whatsapp/client';
-import { MetaCloudTransport, assertTransportUsable } from './whatsapp/transport';
+import {
+  MetaCloudTransport,
+  assertTransportUsable,
+  type MessageTransport,
+} from './whatsapp/transport';
 import { TaskQueue } from './http/queue';
 import { createApp } from './http/app';
 import { createMessageHandler } from './orchestrator/handler';
@@ -108,17 +112,22 @@ async function main(): Promise<void> {
     onError: (err) => logger.error({ err }, 'queued task failed'),
   });
 
-  const handleMessage = createMessageHandler({
-    sessions,
-    messages,
-    audit,
-    outcomes,
-    whatsapp,
-    logger,
-    pepper: config.privacy.phoneHashPepper,
-    sessionTtlMinutes: config.behaviour.sessionTtlMinutes,
-    ...(assessment ? { assessment } : {}),
-  });
+  // One factory, so the demo interface can bind the same handler to a capturing
+  // transport and exercise exactly the code path a WhatsApp message takes.
+  const makeHandler = (transport: MessageTransport) =>
+    createMessageHandler({
+      sessions,
+      messages,
+      audit,
+      outcomes,
+      whatsapp: transport,
+      logger,
+      pepper: config.privacy.phoneHashPepper,
+      sessionTtlMinutes: config.behaviour.sessionTtlMinutes,
+      ...(assessment ? { assessment } : {}),
+    });
+
+  const handleMessage = makeHandler(whatsapp);
 
   const app = createApp({
     appSecret: config.whatsapp.appSecret,
@@ -134,6 +143,16 @@ async function main(): Promise<void> {
       ...(process.env.ADMIN_TOKEN ? { adminToken: process.env.ADMIN_TOKEN } : {}),
       ...(assessment ? { assessment, retriever: assessment.retriever } : {}),
       ...(knowledgeIndexSize !== null ? { indexSize: () => knowledgeIndexSize as number } : {}),
+    },
+    demo: {
+      // Off by default in production: it is an unauthenticated chat interface onto the
+      // triage engine. Enable deliberately with DEMO_ENABLED=true.
+      enabled: process.env.DEMO_ENABLED === 'true' || !config.isProduction,
+      makeHandler,
+      sessions,
+      outcomes,
+      pepper: config.privacy.phoneHashPepper,
+      sessionTtlMinutes: config.behaviour.sessionTtlMinutes,
     },
   });
 

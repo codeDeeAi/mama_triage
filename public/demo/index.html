@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MamaTriage — demonstration interface</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36; --text: #e7e9ee;
+    --muted: #98a0b0; --accent: #25d366;
+    --emergency: #e5484d; --facility: #f0883e; --selfcare: #30a46c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .banner {
+    background: #3a2a12; border: 1px solid #6b4a1c; color: #f5c77e;
+    padding: 8px 12px; border-radius: 6px; font-size: 13px; margin: 0;
+  }
+  main { display: grid; grid-template-columns: 1fr 380px; gap: 0; height: calc(100vh - 62px); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } }
+
+  #chat { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+  #log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 78%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: #114d33; border-bottom-right-radius: 3px; }
+  .msg.bot  { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 3px; }
+  .msg.sys  { align-self: center; color: var(--muted); font-size: 13px; font-style: italic; background: none; }
+
+  #options { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 8px; }
+  #options button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--accent);
+    padding: 8px 14px; border-radius: 18px; cursor: pointer; font-size: 14px;
+  }
+  #options button:hover { background: #1d2530; }
+
+  form { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); }
+  input[type=text] {
+    flex: 1; background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; font-size: 15px;
+  }
+  button.send { background: var(--accent); color: #06281a; border: 0; border-radius: 8px; padding: 11px 20px; font-weight: 600; cursor: pointer; }
+  button.send:disabled { opacity: .5; cursor: default; }
+
+  aside { padding: 18px 20px; overflow-y: auto; background: #12141a; }
+  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
+  .row span:first-child { color: var(--muted); }
+  .pill { padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .pill.emergency { background: var(--emergency); color: #fff; }
+  .pill.facility_visit { background: var(--facility); color: #2b1400; }
+  .pill.self_care { background: var(--selfcare); color: #04220f; }
+  .flag { border-left: 3px solid var(--emergency); padding: 6px 10px; margin: 6px 0; background: #1d1417; font-size: 12.5px; }
+  .flag .id { font-family: ui-monospace, monospace; color: #ff9ea1; }
+  .flag .src { color: var(--muted); font-size: 11.5px; display: block; margin-top: 3px; }
+  .empty { color: var(--muted); font-size: 13px; }
+  code { font-family: ui-monospace, monospace; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MamaTriage — demonstration interface</h1>
+  <p class="banner">
+    Research prototype. Not a medical device, not for real patients. This browser demo drives
+    the same code as the WhatsApp channel.
+  </p>
+</header>
+
+<main>
+  <section id="chat">
+    <div id="log">
+      <div class="msg sys">Send a message to begin, e.g. “hello”.</div>
+    </div>
+    <div id="options"></div>
+    <form id="form">
+      <input type="text" id="input" placeholder="Type as a mother would…" autocomplete="off" />
+      <button class="send" id="send" type="submit">Send</button>
+    </form>
+  </section>
+
+  <aside>
+    <h2>Why it answered this way</h2>
+
+    <div class="card">
+      <div class="row"><span>Session state</span><strong id="i-state">—</strong></div>
+      <div class="row"><span>Pathway</span><strong id="i-pathway">—</strong></div>
+      <div class="row"><span>Language</span><strong id="i-lang">—</strong></div>
+      <div class="row"><span>Urgency</span><span id="i-urgency">—</span></div>
+      <div class="row"><span>Response time</span><strong id="i-latency">—</strong></div>
+    </div>
+
+    <h2>Danger signs matched this turn</h2>
+    <div class="card" id="i-flags"><div class="empty">None matched.</div></div>
+
+    <h2>Urgency by layer</h2>
+    <div class="card" id="i-layers"><div class="empty">No assessment yet.</div></div>
+
+    <h2>Clinical information gathered</h2>
+    <div class="card" id="i-slots"><div class="empty">Nothing yet.</div></div>
+  </aside>
+</main>
+
+<script>
+const log = document.getElementById('log');
+const optionsEl = document.getElementById('options');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+let sessionId = null;
+
+function add(text, cls) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + cls;
+  el.textContent = text;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function pill(urgency) {
+  if (!urgency) return '—';
+  return '<span class="pill ' + urgency + '">' + urgency.replace(/_/g, ' ') + '</span>';
+}
+
+function renderInspector(ins, latencyMs) {
+  document.getElementById('i-state').textContent = ins.state ?? '—';
+  document.getElementById('i-pathway').textContent = ins.pathway ?? '—';
+  document.getElementById('i-lang').textContent =
+    ins.language === 'pcm' ? 'Nigerian Pidgin' : ins.language === 'en' ? 'English' : '—';
+  document.getElementById('i-urgency').innerHTML = pill(ins.urgency);
+  document.getElementById('i-latency').textContent = latencyMs + ' ms';
+
+  const flags = document.getElementById('i-flags');
+  const items = [...(ins.redFlagsThisTurn || [])];
+  if (items.length === 0 && (!ins.distress || ins.distress.length === 0)) {
+    flags.innerHTML = '<div class="empty">None matched.</div>';
+  } else {
+    flags.innerHTML =
+      items.map(f =>
+        '<div class="flag"><span class="id">' + f.id + '</span> → ' + f.urgency +
+        ' <em>(' + f.via + ': “' + f.evidence + '”)</em>' +
+        '<span class="src">' + f.source + '</span></div>'
+      ).join('') +
+      (ins.distress && ins.distress.length
+        ? '<div class="flag"><span class="id">DISTRESS</span> → ' + ins.distress.join(', ') + '</div>'
+        : '');
+  }
+
+  const layers = document.getElementById('i-layers');
+  if (ins.lastOutcome) {
+    const o = ins.lastOutcome;
+    layers.innerHTML =
+      '<div class="row"><span>Model alone</span><span>' + pill(o.urgencyLlm) + '</span></div>' +
+      '<div class="row"><span>Deterministic rules</span><span>' + pill(o.urgencyRules) + '</span></div>' +
+      '<div class="row"><span>Final</span><span>' + pill(o.urgency) + '</span></div>' +
+      '<div class="row"><span>Raised by</span><strong>' + (o.escalatedBy || 'no escalation needed') + '</strong></div>';
+  } else {
+    layers.innerHTML = '<div class="empty">No model assessment yet — the deterministic layer may have answered alone.</div>';
+  }
+
+  const slots = document.getElementById('i-slots');
+  const entries = Object.entries(ins.slots || {});
+  slots.innerHTML = entries.length
+    ? entries.map(([k, v]) => '<div class="row"><span><code>' + k + '</code></span><strong>' + v + '</strong></div>').join('')
+    : '<div class="empty">Nothing yet.</div>';
+}
+
+function showOptions(options) {
+  optionsEl.innerHTML = '';
+  for (const o of options || []) {
+    const b = document.createElement('button');
+    b.textContent = o.title;
+    b.onclick = () => send(o.title, o.id);
+    optionsEl.appendChild(b);
+  }
+}
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  const r = await fetch('/demo/api/session', { method: 'POST' });
+  sessionId = (await r.json()).sessionId;
+  return sessionId;
+}
+
+async function send(text, replyId) {
+  if (!text.trim()) return;
+  add(text, 'user');
+  input.value = '';
+  showOptions([]);
+  sendBtn.disabled = true;
+
+  try {
+    const id = await ensureSession();
+    const res = await fetch('/demo/api/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: id, text, replyId }),
+    });
+    if (!res.ok) {
+      add('The service returned an error (' + res.status + ').', 'sys');
+      return;
+    }
+    const data = await res.json();
+    for (const reply of data.replies) add(reply, 'bot');
+    showOptions(data.options);
+    renderInspector(data.inspector, data.latencyMs);
+  } catch (e) {
+    add('Could not reach the service.', 'sys');
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+form.onsubmit = (e) => { e.preventDefault(); send(input.value); };
+input.focus();
+</script>
+</body>
+</html>

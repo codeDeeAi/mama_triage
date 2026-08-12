@@ -118,6 +118,18 @@ export function createMessageHandler(deps: HandlerDeps) {
       detectLanguageHeuristic(msg.text),
     );
 
+    // Re-detect on every pre-assessment turn. A mother may open with "hello" and switch
+    // to Pidgin once she starts describing symptoms; detecting only at session creation
+    // left her reading an emergency referral in the wrong language. Once assessment
+    // begins the model's `detected_language` is authoritative and overrides this.
+    if (msg.text && session.state !== 'assessing') {
+      const detected = detectLanguageHeuristic(msg.text);
+      if (detected !== session.language && detected === 'pcm') {
+        await deps.sessions.setLanguage(session.id, detected);
+        session.language = detected;
+      }
+    }
+
     await deps.messages.record({
       sessionId: session.id,
       direction: 'inbound',

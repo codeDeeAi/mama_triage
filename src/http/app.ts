@@ -16,6 +16,8 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import { verifySignature } from './middleware/verifySignature';
 import { createWebhookRouter, type WebhookDeps } from './webhook.routes';
 import { createAdminRouter, type AdminDeps } from './admin.routes';
+import { createDemoRouter, type DemoDeps } from './demo.routes';
+import { join } from 'node:path';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { Logger } from '../telemetry/logger';
@@ -27,6 +29,8 @@ export interface AppDeps extends WebhookDeps {
   version?: string;
   /** Admin/debug routes. Omit to disable them entirely. */
   admin?: Omit<AdminDeps, 'logger'>;
+  /** Browser demonstration interface. Omit to disable it entirely. */
+  demo?: Omit<DemoDeps, 'logger'>;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -69,6 +73,11 @@ export function createApp(deps: AppDeps): Express {
 
   if (deps.admin) {
     app.use(createAdminRouter({ ...deps.admin, logger: deps.logger }));
+  }
+
+  if (deps.demo?.enabled) {
+    app.use(createDemoRouter({ ...deps.demo, logger: deps.logger }));
+    app.use('/demo', express.static(join(process.cwd(), 'public', 'demo')));
   }
 
   app.use((_req: Request, res: Response) => {

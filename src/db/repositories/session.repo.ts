@@ -151,6 +151,21 @@ export class SessionRepository {
     await this.db.query(`UPDATE sessions SET last_activity_at = NOW() WHERE id = $1`, [id]);
   }
 
+  /**
+   * Most recent session for a caller, terminal or not.
+   *
+   * Distinct from `findActive`, which deliberately excludes completed and escalated
+   * sessions so a new message starts fresh. Used for inspection and reporting, where the
+   * terminal session is the interesting one.
+   */
+  async findLatest(waIdHash: string): Promise<SessionRow | null> {
+    const row = await this.db.one<SessionRow>(
+      `SELECT * FROM sessions WHERE wa_id_hash = $1 ORDER BY started_at DESC LIMIT 1`,
+      [waIdHash],
+    );
+    return row ?? null;
+  }
+
   async findById(id: string): Promise<SessionRow | null> {
     return (await this.db.one<SessionRow>(`SELECT * FROM sessions WHERE id = $1`, [id])) ?? null;
   }

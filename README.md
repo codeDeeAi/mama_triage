@@ -29,6 +29,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Assessment state machine + renderer | ✅ full conversation end to end |
 | Evaluation harness (Objective 4) | ✅ metrics, runner, report generator |
 | Deployment (Dockerfile, CI, `/admin/simulate`) | ✅ image builds and runs |
+| Web demonstration interface (`/demo`) | ✅ drives the real handler; shows the reasoning |
 
 ### Blocked on inputs, not code
 
@@ -37,7 +38,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | **Clinical reviewer sign-off** | Every red-flag rule is `verified: false`. `assertRegisterVerified()` throws, and reports are stamped NOT REPORTABLE. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
 | **WHO IMCI / FMOH BEmONC documents** | RAG indexes a clearly-marked placeholder. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
 | **Scenario bank** | 7 committed, ~80 planned, each needing adjudication by two reviewers. |
-| **Meta Business approval** | Needed for a live number. `/admin/simulate` keeps development unblocked meanwhile. |
+| **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: its API has no inbound WhatsApp webhook and sends pre-approved templates only, never free text. Meta's Cloud API test number (free, 5 recipients) is the working path. The `/demo` interface keeps everything else unblocked meanwhile. |
 
 Full build plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
 Hazards and residual risk: [`docs/safety/clinical-safety-case.md`](docs/safety/clinical-safety-case.md).

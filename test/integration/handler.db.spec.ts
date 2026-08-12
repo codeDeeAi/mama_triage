@@ -385,3 +385,29 @@ describe('webhook event repository', () => {
     expect(await events.claim(id)).toBe(true);
   });
 });
+
+describe('language switching mid-conversation', () => {
+  maybe('answers in Pidgin when the mother switches to it after an English opener', async () => {
+    // A mother may open with "hello" and switch to Pidgin once she describes symptoms.
+    // Detecting language only at session creation left her reading an emergency
+    // referral in the wrong language — found by the demo interface.
+    const c = ctx();
+    await c.send('hello');
+    await c.send('my pikin no gree chop at all');
+
+    expect(c.wa.allBodies).toMatch(/EMERGENCY/);
+    expect(c.wa.allBodies).toMatch(/health centre wey dey near you/i);
+  });
+
+  maybe('does not switch away from Pidgin on an ambiguous message', async () => {
+    const c = ctx();
+    await c.send('abeg my pikin dey sick');
+    await c.send('ok');
+    // Once Pidgin is detected it is kept; the heuristic only ever upgrades to pcm.
+    const row = await db.one<{ language: string }>(
+      `SELECT language FROM sessions WHERE wa_id_hash=$1 ORDER BY started_at DESC LIMIT 1`,
+      [c.waIdHash],
+    );
+    expect(row?.language).toBe('pcm');
+  });
+});
