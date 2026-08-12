@@ -32,7 +32,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Web demonstration interface (`/demo`) | ✅ drives the real handler; shows the reasoning |
 | Landing page (`/`) and registration (`/register`) | ✅ EJS + Tailwind + htmx, no CDN |
 | Consent gate, privacy notice, terms of use | ✅ versioned; the accepted version is stored |
-| SMS (KudiSMS) | ⚠️ **notifications only** — no inbound webhook, so it cannot host a conversation |
+| SMS (KudiSMS) | ✅ opt-in reminders. **Not a chat channel** — no inbound webhook |
 | IMCI follow-up reminders | ✅ scheduled at the WHO intervals, sent on her own channel |
 | **Telegram channel** | ✅ full two-way, free text, inline buttons — no approval needed |
 

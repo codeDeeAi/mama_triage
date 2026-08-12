@@ -41,13 +41,25 @@
   // all, so the phone number cannot reach the server on the Telegram path even if the
   // field was filled in before switching channel.
   document.addEventListener('change', function (e) {
-    if (e.target.name !== 'channel') return;
-    var block = document.getElementById('phone-block');
-    var input = document.getElementById('phone');
-    var isWhatsApp = e.target.value === 'whatsapp';
-    block.classList.toggle('hidden', !isWhatsApp);
-    input.disabled = !isWhatsApp;
-    input.required = isWhatsApp;
-    if (!isWhatsApp) input.value = '';
+    if (e.target.name === 'channel') {
+      var block = document.getElementById('phone-block');
+      var input = document.getElementById('phone');
+      var isWhatsApp = e.target.value === 'whatsapp';
+      block.classList.toggle('hidden', !isWhatsApp);
+      input.disabled = !isWhatsApp;
+      input.required = isWhatsApp;
+      if (!isWhatsApp) input.value = '';
+    }
+
+    if (e.target.name === 'smsReminders') {
+      // Same rule as the WhatsApp number: a disabled input is not submitted at all, so
+      // no number reaches the server unless she actually asked for reminders.
+      var smsBlock = document.getElementById('sms-number-block');
+      var smsInput = document.getElementById('smsNumber');
+      smsBlock.classList.toggle('hidden', !e.target.checked);
+      smsInput.disabled = !e.target.checked;
+      smsInput.required = e.target.checked;
+      if (!e.target.checked) smsInput.value = '';
+    }
   });
 </script>

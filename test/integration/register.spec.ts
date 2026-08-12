@@ -373,3 +373,98 @@ describe('policy pages', () => {
     expect(res.text).toMatch(/Voyage AI/);
   });
 });
+
+describe('SMS reminder opt-in', () => {
+  maybe('offers reminders as an add-on, not as a chat channel', async () => {
+    // SMS cannot receive a reply on this provider, so offering "chat by SMS" would
+    // promise something that fails silently at the moment someone needs it.
+    const res = await request(app(['telegram'])).get('/register');
+    expect(res.text).toMatch(/name="smsReminders"/);
+    expect(res.text).toMatch(/cannot chat with us by text/i);
+    expect(res.text).not.toMatch(/value="sms"/); // never a channel choice
+  });
+
+  maybe('stores nothing extra when reminders are not requested', async () => {
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({ displayName: 'Amina', channel: 'telegram', consent: 'yes' });
+
+    const row = await db.one<{ sms_number: string | null; sms_opt_in_at: Date | null }>(
+      `SELECT sms_number, sms_opt_in_at FROM registrations WHERE id = $1`,
+      [res.body.registrationId],
+    );
+    expect(row?.sms_number).toBeNull();
+    expect(row?.sms_opt_in_at).toBeNull();
+    expect(res.body.smsReminders).toBe(false);
+  });
+
+  maybe('stores a dialable number, and the opt-in time, when requested', async () => {
+    // The documented exception to hashing: a reminder cannot be sent to a number the
+    // system has made unrecoverable.
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({
+        displayName: 'Amina', channel: 'telegram', consent: 'yes',
+        smsReminders: 'yes', smsNumber: '08055667788',
+      });
+
+    expect(res.body.smsReminders).toBe(true);
+    const row = await db.one<{ sms_number: string; sms_opt_in_at: Date }>(
+      `SELECT sms_number, sms_opt_in_at FROM registrations WHERE id = $1`,
+      [res.body.registrationId],
+    );
+    expect(row?.sms_number).toBe('2348055667788'); // normalised so it can be dialled
+    expect(row?.sms_opt_in_at).not.toBeNull();
+  });
+
+  maybe('requires a number when reminders are ticked', async () => {
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({ displayName: 'Amina', channel: 'telegram', consent: 'yes', smsReminders: 'yes' });
+
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/number is needed to send you text reminders/i);
+  });
+
+  maybe('refuses a number that was not asked for', async () => {
+    // Storing a recoverable number nobody requested would defeat the point.
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({
+        displayName: 'Amina', channel: 'telegram', consent: 'yes',
+        smsNumber: '08055667788',
+      });
+
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/Tick the reminders box/i);
+  });
+
+  maybe('lets her withdraw the number without leaving the study', async () => {
+    const res = await request(app(['telegram']))
+      .post('/register/api')
+      .send({
+        displayName: 'Amina', channel: 'telegram', consent: 'yes',
+        smsReminders: 'yes', smsNumber: '08055667799',
+      });
+
+    const repo = new RegistrationRepository(db);
+    await repo.withdrawSmsOptIn(res.body.registrationId);
+
+    const row = await db.one<{ sms_number: string | null; display_name: string }>(
+      `SELECT sms_number, display_name FROM registrations WHERE id = $1`,
+      [res.body.registrationId],
+    );
+    expect(row?.sms_number).toBeNull();
+    expect(row?.display_name).toBe('Amina'); // registration itself survives
+  });
+
+  maybe('the database refuses a number with no recorded opt-in', async () => {
+    // Belt and braces: the constraint holds even if a future code path forgets.
+    await expect(
+      db.query(
+        `INSERT INTO registrations (display_name, channel, link_token, sms_number)
+         VALUES ('X', 'telegram', 'tok-x', '2348000000000')`,
+      ),
+    ).rejects.toThrow(/chk_sms_optin_consistent/);
+  });
+});

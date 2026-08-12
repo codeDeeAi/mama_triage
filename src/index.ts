@@ -15,6 +15,7 @@ import { OutcomeRepository } from './db/repositories/outcome.repo';
 import { RegistrationRepository } from './db/repositories/registration.repo';
 import { FollowUpRepository } from './db/repositories/followup.repo';
 import { startFollowUpRunner } from './scheduler/followUpRunner';
+import { SmsNotifier } from './sms/notifier';
 import { WhatsAppClient } from './whatsapp/client';
 import {
   MetaCloudTransport,
@@ -224,7 +225,24 @@ async function main(): Promise<void> {
     },
   });
 
-  const followUpRunner = startFollowUpRunner({ followUps, transports, logger });
+  // SMS reminders are optional infrastructure: configured or not, the chat reminder is
+  // what the follow-up depends on.
+  const smsNotifier =
+    process.env.KUDISMS_TOKEN && process.env.KUDISMS_SENDER_ID
+      ? new SmsNotifier({
+          token: process.env.KUDISMS_TOKEN,
+          senderId: process.env.KUDISMS_SENDER_ID,
+        })
+      : undefined;
+  if (smsNotifier) logger.info('SMS reminders enabled');
+
+  const followUpRunner = startFollowUpRunner({
+    followUps,
+    transports,
+    logger,
+    registrations,
+    ...(smsNotifier ? { sms: smsNotifier } : {}),
+  });
 
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'listening');

@@ -59,6 +59,18 @@ const RegisterRequest = z
         message: 'Please confirm you have read and agree to the terms and privacy notice',
       }),
     }),
+    /** Optional SMS reminders. Requires a number the system can actually dial. */
+    smsReminders: z.literal('yes').optional(),
+    smsNumber: z.string().trim().optional(),
+  })
+  .refine((v) => v.smsReminders !== 'yes' || (v.smsNumber && v.smsNumber.length >= 10), {
+    message: 'A number is needed to send you text reminders',
+    path: ['smsNumber'],
+  })
+  .refine((v) => v.smsReminders === 'yes' || !v.smsNumber, {
+    // Do not store a recoverable number that was not asked for.
+    message: 'Tick the reminders box if you want us to text you',
+    path: ['smsNumber'],
   })
   .refine((v) => v.channel !== 'whatsapp' || (v.phone && v.phone.length >= 10), {
     message: 'A phone number is needed for WhatsApp',
@@ -192,8 +204,21 @@ async function register(
       };
     }
 
-    const { displayName, channel, language, phone } = parsed.data;
+    const { displayName, channel, language, phone, smsReminders, smsNumber } = parsed.data;
     const policy = { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
+
+    // Normalised so a reminder can actually be dialled, and only present when she asked.
+    let sms: string | undefined;
+    if (smsReminders === 'yes' && smsNumber) {
+      try {
+        sms = normalisePhone(smsNumber);
+      } catch {
+        return {
+          ok: false,
+          issues: [{ field: 'smsNumber', message: 'That does not look like a phone number' }],
+        };
+      }
+    }
 
     if (!deps.availableChannels.includes(channel)) {
       return {
@@ -211,7 +236,7 @@ async function register(
         };
       }
 
-      const reg = await deps.registrations.createTelegram(displayName, policy);
+      const reg = await deps.registrations.createTelegram(displayName, policy, sms);
       deps.logger.info({ registrationId: reg.id, channel }, 'registration created');
 
       return {
@@ -220,6 +245,7 @@ async function register(
           channel,
           displayName,
           registrationId: reg.id,
+          smsReminders: Boolean(sms),
           // The token travels only in the link she opens; nothing about her is stored yet.
           deepLink: `https://t.me/${deps.telegramBotUsername}?start=${reg.link_token}`,
           instructions:
@@ -239,7 +265,12 @@ async function register(
       };
     }
 
-    const reg = await deps.registrations.createWhatsApp(displayName, identityHash, policy);
+    const reg = await deps.registrations.createWhatsApp(
+      displayName,
+      identityHash,
+      policy,
+      sms,
+    );
     deps.logger.info({ registrationId: reg.id, channel }, 'registration created');
 
     // Send the approved welcome template. The mother's reply is what opens the session
@@ -270,6 +301,7 @@ async function register(
         channel,
         displayName,
         registrationId: reg.id,
+        smsReminders: Boolean(sms),
         welcomeSent,
         instructions: welcomeSent
           ? 'Check WhatsApp for a message from us, and reply to begin.'

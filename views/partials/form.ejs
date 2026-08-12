@@ -59,6 +59,38 @@
            inputmode="tel" autocomplete="tel" placeholder="0801 234 5678" />
   </div>
 
+  <!--
+    SMS is offered as an ADD-ON, not a chat option. The provider has no inbound SMS
+    webhook, so a reply would never reach the server — offering "chat by SMS" would
+    promise something that silently fails at the moment someone needs it. Reminders are
+    one-way, so SMS does that perfectly, and it is the only channel that works on a
+    feature phone with no data.
+  -->
+  <div class="rounded-xl border-2 border-dashed border-ink-line bg-slate-50 p-4">
+    <label class="flex cursor-pointer items-start gap-3">
+      <input type="checkbox" name="smsReminders" value="yes" id="smsReminders"
+             class="mt-1 h-5 w-5 shrink-0 rounded border-2 border-slate-400
+                    text-brand focus:ring-2 focus:ring-brand/30" />
+      <span class="text-sm leading-relaxed text-slate-700">
+        <strong class="block text-ink">
+          Also text me reminders <span class="font-normal text-slate-500">(optional)</span>
+        </strong>
+        If we advise you to see a health worker, we check back after a day or two.
+        A text message reaches you even with no internet.
+        <span class="mt-1.5 block text-xs text-slate-500">
+          You cannot chat with us by text — only receive reminders. To do this we keep
+          your number so we can text you, and you can ask us to delete it at any time.
+        </span>
+      </span>
+    </label>
+
+    <div id="sms-number-block" class="mt-3 hidden">
+      <label class="label" for="smsNumber">Number for reminders</label>
+      <input class="field mt-2" type="tel" id="smsNumber" name="smsNumber" disabled
+             inputmode="tel" autocomplete="tel" placeholder="0801 234 5678" />
+    </div>
+  </div>
+
   <div>
     <label class="label" for="language">Which language do you prefer?</label>
     <select class="field mt-2" id="language" name="language">

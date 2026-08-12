@@ -8,11 +8,13 @@
  * template once the 24-hour session window has closed, which is precisely why
  * `mama_triage_followup_*` exists.
  *
- * SMS is NOT used here, and the reason is worth stating: the system hashes phone numbers
- * irreversibly, so it cannot send an SMS to a registrant even though the SMS API works.
- * That is a genuine consequence of the privacy design rather than an oversight — sending
- * SMS reminders would require storing recoverable numbers, which is a decision for the
- * researcher and their ethics reviewer, not a default.
+ * SMS is sent IN ADDITION to the chat reminder, and only for registrants who explicitly
+ * opted in and gave a number. It is not a substitute: SMS cannot receive her reply, so
+ * the chat message is what lets her actually come back. What SMS adds is reach — it
+ * arrives on a feature phone with no data connection, which neither chat channel can do.
+ *
+ * A failed SMS never fails the follow-up. The reminder that matters is the one she can
+ * reply to.
  */
 
 import { followUpMessage } from '../orchestrator/followUp';
@@ -21,12 +23,18 @@ import type { FollowUpRepository, FollowUpRow } from '../db/repositories/followu
 import type { MessageTransport } from '../whatsapp/transport';
 import type { Logger } from '../telemetry/logger';
 import type { Language } from '../types';
+import type { SmsNotifier } from '../sms/notifier';
+import { followUpSms } from '../sms/notifier';
+import type { RegistrationRepository } from '../db/repositories/registration.repo';
 
 export interface FollowUpRunnerDeps {
   followUps: FollowUpRepository;
   /** One transport per channel, keyed as in the bootstrap. */
   transports: Map<string, MessageTransport>;
   logger: Logger;
+  /** Optional: sends the extra SMS reminder for registrants who opted in. */
+  sms?: SmsNotifier;
+  registrations?: RegistrationRepository;
   studyName?: string;
 }
 
@@ -35,6 +43,8 @@ export interface RunResult {
   sent: number;
   failed: number;
   skipped: number;
+  /** Extra SMS copies delivered alongside the chat reminder. */
+  smsSent: number;
 }
 
 /** One pass over the due queue. */
@@ -43,7 +53,7 @@ export async function runFollowUps(
   now: Date = new Date(),
 ): Promise<RunResult> {
   const due = await deps.followUps.claimDue(50, now);
-  const result: RunResult = { claimed: due.length, sent: 0, failed: 0, skipped: 0 };
+  const result: RunResult = { claimed: due.length, sent: 0, failed: 0, skipped: 0, smsSent: 0 };
 
   for (const row of due) {
     const transport = deps.transports.get(row.channel);
@@ -79,6 +89,28 @@ export async function runFollowUps(
 
       await deps.followUps.markSent(row.id);
       result.sent += 1;
+
+      // Additional reach for anyone who asked for it. Attempted after the chat reminder
+      // has already succeeded, and never allowed to fail the follow-up: the message she
+      // can reply to is the one that matters.
+      if (deps.sms && deps.registrations) {
+        try {
+          const reg = await deps.registrations.findByIdentity(row.identity_hash);
+          if (reg?.sms_number) {
+            await deps.sms.send(
+              reg.sms_number,
+              followUpSms(
+                row.display_name ?? 'there',
+                row.language as Language,
+                row.channel === 'telegram' ? 'Telegram' : 'WhatsApp',
+              ),
+            );
+            result.smsSent += 1;
+          }
+        } catch (err) {
+          deps.logger.warn({ followUpId: row.id, err }, 'extra SMS reminder failed');
+        }
+      }
       deps.logger.info(
         { followUpId: row.id, channel: row.channel, reason: row.reason },
         'follow-up sent',

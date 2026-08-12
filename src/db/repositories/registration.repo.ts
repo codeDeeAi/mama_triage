@@ -26,6 +26,9 @@ export interface RegistrationRow {
   contact_consent_at: Date;
   terms_version: string | null;
   privacy_version: string | null;
+  /** Recoverable number, present only for registrants who opted into SMS reminders. */
+  sms_number: string | null;
+  sms_opt_in_at: Date | null;
   created_at: Date;
 }
 
@@ -42,13 +45,25 @@ export class RegistrationRepository {
     displayName: string,
     identityHash: string,
     policy: PolicyVersions,
+    smsNumber?: string,
   ): Promise<RegistrationRow> {
     const row = await this.db.one<RegistrationRow>(
       `INSERT INTO registrations
-         (display_name, channel, identity_hash, terms_version, privacy_version)
-       VALUES ($1, 'whatsapp', $2, $3, $4)
+         (display_name, channel, identity_hash, terms_version, privacy_version,
+          sms_number, sms_opt_in_at)
+       VALUES ($1, 'whatsapp', $2, $3, $4, $5, $6)
        RETURNING *`,
-      [displayName, identityHash, policy.termsVersion, policy.privacyVersion],
+      [
+        displayName,
+        identityHash,
+        policy.termsVersion,
+        policy.privacyVersion,
+        smsNumber ?? null,
+        // Computed here rather than with a CASE over $5: reusing one parameter as both a
+        // value and a cast operand makes Postgres deduce two different types for it and
+        // reject the statement.
+        smsNumber ? new Date() : null,
+      ],
     );
     if (!row) throw new Error('failed to create registration');
     return row;
@@ -64,13 +79,22 @@ export class RegistrationRepository {
   async createTelegram(
     displayName: string,
     policy: PolicyVersions,
+    smsNumber?: string,
   ): Promise<RegistrationRow> {
     const row = await this.db.one<RegistrationRow>(
       `INSERT INTO registrations
-         (display_name, channel, link_token, terms_version, privacy_version)
-       VALUES ($1, 'telegram', $2, $3, $4)
+         (display_name, channel, link_token, terms_version, privacy_version,
+          sms_number, sms_opt_in_at)
+       VALUES ($1, 'telegram', $2, $3, $4, $5, $6)
        RETURNING *`,
-      [displayName, generateLinkToken(), policy.termsVersion, policy.privacyVersion],
+      [
+        displayName,
+        generateLinkToken(),
+        policy.termsVersion,
+        policy.privacyVersion,
+        smsNumber ?? null,
+        smsNumber ? new Date() : null,
+      ],
     );
     if (!row) throw new Error('failed to create registration');
     return row;
@@ -112,6 +136,14 @@ export class RegistrationRepository {
         `SELECT * FROM registrations WHERE link_token = $1`,
         [token],
       )) ?? null
+    );
+  }
+
+  /** Forget a number on request, without deleting the registration. */
+  async withdrawSmsOptIn(registrationId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE registrations SET sms_number = NULL, sms_opt_in_at = NULL WHERE id = $1`,
+      [registrationId],
     );
   }
 
