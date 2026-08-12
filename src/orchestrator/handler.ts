@@ -23,6 +23,8 @@ import type { MessageRepository } from '../db/repositories/message.repo';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { OutcomeRepository } from '../db/repositories/outcome.repo';
 import type { RegistrationRepository } from '../db/repositories/registration.repo';
+import type { FollowUpRepository } from '../db/repositories/followup.repo';
+import { dueAt, planFollowUp } from './followUp';
 import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
 import { buildEmergencyMessage } from './render';
@@ -45,6 +47,8 @@ export interface HandlerDeps {
   outcomes?: OutcomeRepository;
   /** Optional: links a Telegram deep-link registration to its chat on first contact. */
   registrations?: RegistrationRepository;
+  /** Optional: queues the IMCI follow-up reminders. */
+  followUps?: FollowUpRepository;
   /** How many prior messages to include as conversation context. */
   transcriptWindow?: number;
 }
@@ -351,6 +355,52 @@ async function handleAssessment(
   }
   if (outcome.state === 'escalated') {
     await deps.audit.record('EMERGENCY_ISSUED', { via: 'assessment' }, session.id);
+  }
+
+  // WHO IMCI prescribes fixed follow-up intervals for the yellow classifications.
+  // Advising her to come back with no way to reach her would make that advice
+  // decorative.
+  if (deps.followUps && outcome.urgency) {
+    if (outcome.state === 'escalated') {
+      // She has been told to go now. A reminder in two days would read as though the
+      // referral were optional.
+      const cancelled = await deps.followUps.cancelForSession(
+        session.id,
+        'superseded by an emergency referral',
+      );
+      if (cancelled > 0) {
+        deps.logger.info({ sessionId: session.id, cancelled }, 'follow-ups cancelled');
+      }
+    } else if (outcome.state === 'completed') {
+      const plan = planFollowUp({
+        urgency: outcome.urgency,
+        pathway: session.pathway,
+        slots: outcome.slots,
+      });
+      if (plan) {
+        const registration = deps.registrations
+          ? await deps.registrations.findByIdentity(
+              hashIdentity(msg.channel, msg.from, deps.pepper),
+            )
+          : null;
+
+        await deps.followUps.schedule({
+          sessionId: session.id,
+          identityHash: hashIdentity(msg.channel, msg.from, deps.pepper),
+          recipient: msg.from,
+          channel: msg.channel,
+          language: session.language,
+          displayName: registration?.display_name ?? null,
+          reason: plan.reason,
+          intervalDays: plan.intervalDays,
+          dueAt: dueAt(plan, new Date()),
+        });
+        deps.logger.info(
+          { sessionId: session.id, reason: plan.reason, days: plan.intervalDays },
+          'follow-up scheduled',
+        );
+      }
+    }
   }
 
   await deps.sessions.setState(session.id, outcome.state);

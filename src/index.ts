@@ -13,6 +13,8 @@ import { MessageRepository } from './db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from './db/repositories/event.repo';
 import { OutcomeRepository } from './db/repositories/outcome.repo';
 import { RegistrationRepository } from './db/repositories/registration.repo';
+import { FollowUpRepository } from './db/repositories/followup.repo';
+import { startFollowUpRunner } from './scheduler/followUpRunner';
 import { WhatsAppClient } from './whatsapp/client';
 import {
   MetaCloudTransport,
@@ -57,6 +59,7 @@ async function main(): Promise<void> {
   const audit = new AuditRepository(db);
   const outcomes = new OutcomeRepository(db);
   const registrations = new RegistrationRepository(db);
+  const followUps = new FollowUpRepository(db);
 
   // The knowledge index is built at image build time and shipped read-only. If it is
   // missing the service still starts, but assessment is disabled rather than silently
@@ -156,6 +159,7 @@ async function main(): Promise<void> {
       audit,
       outcomes,
       registrations,
+      followUps,
       whatsapp: transport,
       logger,
       pepper: config.privacy.phoneHashPepper,
@@ -220,6 +224,8 @@ async function main(): Promise<void> {
     },
   });
 
+  const followUpRunner = startFollowUpRunner({ followUps, transports, logger });
+
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'listening');
   });
@@ -231,7 +237,10 @@ async function main(): Promise<void> {
         try {
           const expired = await sessions.expireStale(config.behaviour.sessionTtlMinutes);
           const purged = await events.purgeOlderThan(7);
-          if (expired || purged) logger.debug({ expired, purged }, 'housekeeping');
+          const addresses = await followUps.purgeStaleRecipients();
+          if (expired || purged || addresses) {
+            logger.debug({ expired, purged, addresses }, 'housekeeping');
+          }
         } catch (err) {
           logger.error({ err }, 'housekeeping failed');
         }
@@ -244,6 +253,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string): void => {
     logger.info({ signal }, 'shutting down');
     clearInterval(housekeeping);
+    followUpRunner.stop();
     server.close(() => {
       void (async () => {
         // Let in-flight triage turns finish before closing the pool — a mother
