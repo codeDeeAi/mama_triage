@@ -15,7 +15,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 ## Status
 
-**708 tests.** Typecheck, build and Docker image all clean.
+**725 tests.** Typecheck, build and Docker image all clean.
 
 | Component | State |
 |---|---|
@@ -24,7 +24,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | Safety layer (red flags, negation, ratchet, distress, fallback) | ✅ **100% coverage** |
 | Configuration with fail-fast validation | ✅ |
 | WhatsApp webhook, privacy, consent flow | ✅ signature verification, ACK-first, idempotent |
-| RAG pipeline (chunk → embed → retrieve) | ✅ runs on a **placeholder corpus** |
+| RAG pipeline (chunk → embed → retrieve) | ✅ indexes WHO IMCI 2014 + FMOH PPH 2025 |
 | LLM triage with structured output + second-pass check | ✅ |
 | Assessment state machine + renderer | ✅ full conversation end to end |
 | Evaluation harness (Objective 4) | ✅ metrics, runner, report generator |
@@ -35,9 +35,9 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 | Blocker | Effect |
 |---|---|
-| **Clinical reviewer sign-off** | Every red-flag rule is `verified: false`. `assertRegisterVerified()` throws, and reports are stamped NOT REPORTABLE. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
-| **WHO IMCI / FMOH BEmONC documents** | RAG indexes a clearly-marked placeholder. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
-| **Scenario bank** | 7 committed, ~80 planned, each needing adjudication by two reviewers. |
+| **Clinical reviewer sign-off** | 12 of 20 rules are traced to published guidelines; **8 maternal rules carry a SIMULATED review** — the author standing in for a clinician. Every generated report names them and marks derived figures provisional. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
+| **FMOH BEmONC / newborn-care guidelines** | Not publicly available; the PPH guideline is in, the rest of the maternal rules have no source document. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
+| **Scenario bank adjudication** | 65 scenarios committed. Neonatal golds are WHO-traced; the 29 maternal golds are marked `PENDING CLINICAL ADJUDICATION`. |
 | **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: its API has no inbound WhatsApp webhook and sends pre-approved templates only, never free text. Meta's Cloud API test number (free, 5 recipients) is the working path. The `/demo` interface keeps everything else unblocked meanwhile. |
 
 Full build plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
@@ -102,6 +102,19 @@ npm test
 | `npm run kb:ingest` | Rebuild the knowledge index from `knowledge/sources/` |
 | `npm run docs:register` | Regenerate the clinician sign-off pack from the live register |
 | `npm run eval:smoke` | **CI safety gate** — see below |
+| `npm run kb:extract -- <pdf> <md>` | Extract a guideline PDF into the corpus |
+
+### The demonstration interface
+
+```bash
+npm run build && npm start      # then open http://localhost:8080/demo
+```
+
+A browser chat driving the **real** handler — same consent flow, safety scan, state
+machine and persistence, with the WhatsApp transport swapped for a capturing one. The
+inspector panel shows which danger signs matched and on what words, the guideline each
+traces to, and what each layer proposed. Useful for the viva, for clinical reviewers, and
+for Chapter 4 screenshots. It is **not** a substitute for the WhatsApp channel.
 
 ### The safety gate
 
@@ -125,8 +138,8 @@ src/
                   distress detection, LLM-failure fallback   ← 100% coverage required
   orchestrator/   state machine, session handling, pathway definitions
   llm/            Anthropic client, structured triage contract, second-pass safety check
-  rag/            chunking, embedding, Chroma retrieval
-  whatsapp/       Cloud API client, inbound parsing, signature verification
+  rag/            PDF extraction, chunking, embedding, in-process vector store
+  whatsapp/       transports (Meta Cloud API, KudiSMS), parsing, signature verification
   privacy/        phone hashing, PII redaction
   db/             pool and repositories
 migrations/       001–006, node-pg-migrate
@@ -156,12 +169,17 @@ branch, function and line coverage** on it. The suite covers:
 
 ### Clinical verification gate
 
-Every red-flag rule ships with `verified: false` and a `VERIFY:` marker on its source
-field. The patterns show intended shape and coverage; **the clinical thresholds and
-urgency tiers must be traced to the source guidelines (WHO IMCI, FMOH BEmONC) and signed
-off by the project's clinical reviewers.** `assertRegisterVerified()` throws while any rule
-is unverified, and the evaluation runner calls it — so unverified clinical logic cannot
-silently produce results that reach the report.
+Assurance is tracked at two levels, because `verified: true` alone would let a placeholder
+read as clinical validation:
+
+- **✅ traced (12 rules)** — cited to verbatim guideline text (WHO IMCI 2014, FMOH PPH 2025).
+- **🟠 SIMULATED (8 rules)** — the author standing in for a clinician who has not yet been
+  engaged. All maternal, including eclampsia and sepsis.
+
+`assertRegisterVerified()` gates the evaluation runner; `registerFullyAssured()` is the
+stronger claim and is currently **false**. Every generated report opens with a banner
+naming the simulated rules, and a test asserts no rule's provenance ever implies clinician
+sign-off.
 
 ---
 
