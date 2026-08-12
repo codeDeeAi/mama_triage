@@ -45,12 +45,6 @@ beforeAll(async () => {
     console.warn(`\n[skip] database unreachable at ${DATABASE_URL} — run npm run db:up\n`);
     return;
   }
-  if (isLocal(DATABASE_URL)) {
-    await db.query(
-      `TRUNCATE audit_log, messages, triage_outcomes, sessions, webhook_events
-         RESTART IDENTITY CASCADE`,
-    );
-  }
 });
 
 afterAll(async () => {

@@ -53,7 +53,12 @@ const MATERNAL_RULES: RedFlagRule[] = [
     slot: { preeclampsia: 'convulsion' },
     patterns: [
       /\bconvuls/i,
-      /\bfit(?:s|ting)\b/i,
+      // The suffix was previously mandatory, so bare "I had a fit" — the commonest lay
+      // description of a convulsion — never matched. Context is required rather than
+      // matching bare "fit", which is an everyday word ("the dress fits").
+      /\b(?:had|have|has|having|get|got|start(?:ed|s)?)\s+(?:a\s+|the\s+)?fits?\b/i,
+      /\bfitting\b/i,
+      /\bfits?\s+(?:this|last|yesterday|today|earlier)\b/i,
       /\bseizure/i,
       /\bjerking\b/i,
       /body\s+dey\s+shake/i,
@@ -203,12 +208,17 @@ const NEONATAL_RULES: RedFlagRule[] = [
     urgency: 'emergency',
     slot: { feeding: 'unable_to_feed' },
     patterns: [
-      /not\s+(?:feeding|sucking|breastfeeding|drinking)/i,
+      // Covers "not feeding", "has not fed", "has not been sucking", "won't feed",
+      // "is not able to feed". The negation, the optional "been"/"able to", and the
+      // inflected verb forms all matter: mothers do not phrase this the way a guideline
+      // does, and each missing form is a silently missed emergency.
+      // `(?!\s+well)` hands "not feeding well" to NEO_REDUCED_FEEDING instead.
+      /(?:\bnot|\bnever|\w+n'?t)\s+(?:been\s+)?(?:able\s+to\s+)?(?:feed|fed|feeding|suck|sucking|sucked|breastfeed|breastfeeding|drink|drinking|eat|eaten|eating)\b(?!\s+well)/i,
       /(?:refus|reject)(?:e[sd]|ing)?[^.]{0,20}(?:breast|milk|feed)/i,
-      /(?:no|never)\s+dey\s+(?:chop|suck|breastfeed|drink)/i,
+      /(?:no|never)\s+dey\s+(?:chop|suck|breastfeed|drink)\b(?!\s+well)/i,
       /(?:can'?t|cannot|unable\s+to)\s+(?:suck|feed|breastfeed)/i,
-      /stopped\s+(?:feeding|sucking|breastfeeding)/i,
-      /no\s+fit\s+suck/i,
+      /stopped\s+(?:feeding|sucking|breastfeeding|eating)/i,
+      /no\s+fit\s+(?:suck|chop)/i,
     ],
     source: 'VERIFY: WHO IMCI — young infant general danger signs (unable to feed)',
     verified: false,
@@ -240,7 +250,12 @@ const NEONATAL_RULES: RedFlagRule[] = [
     slot: { neonatal_convulsions: 'yes' },
     patterns: [
       /\bconvuls/i,
-      /\bfit(?:s|ting)\b/i,
+      // The suffix was previously mandatory, so bare "I had a fit" — the commonest lay
+      // description of a convulsion — never matched. Context is required rather than
+      // matching bare "fit", which is an everyday word ("the dress fits").
+      /\b(?:had|have|has|having|get|got|start(?:ed|s)?)\s+(?:a\s+|the\s+)?fits?\b/i,
+      /\bfitting\b/i,
+      /\bfits?\s+(?:this|last|yesterday|today|earlier)\b/i,
       /\bseizure/i,
       /(?:body|hand|leg)[^.]{0,15}(?:jerk|twitch|stiff)/i,
       /pikin\s+dey\s+shake/i,
@@ -276,6 +291,9 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:cold|cool)\s+to\s+touch/i,
       /(?:body|skin)[^.]{0,15}(?:very\s+cold|too\s+cold|freezing)/i,
       /(?:hot|burning)\s+to\s+touch/i,
+      // "he feels cold", "the body is very hot" — the commonest lay phrasing, and one
+      // the "to touch" forms above miss entirely.
+      /(?:feels?|body\s+is|skin\s+is)\s+(?:very\s+|really\s+|too\s+)?(?:cold|hot|freezing|burning)\b/i,
       /body\s+dey\s+(?:hot|cold)\s+well\s+well/i,
       /\bhypothermi/i,
       /temperature[^.]{0,20}(?:3[89]|4[01])(?:\.\d)?\s*(?:°|deg|c\b)/i,

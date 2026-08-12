@@ -136,6 +136,56 @@ describe('word order — predicate-after-subject phrasing', () => {
   });
 });
 
+/**
+ * Inflection and intervening words. Each of these was a real false negative found by an
+ * evaluation scenario: the register listed "feeding" but not "fed", and required the
+ * negation to sit adjacent to the verb.
+ */
+describe('verb forms and intervening words', () => {
+  it.each([
+    'the baby is not feeding',
+    'my baby has not fed at all today',
+    'he has not been sucking since morning',
+    "she won't feed",
+    'the baby is not able to feed',
+    'he has not eaten anything',
+    'the baby stopped eating',
+  ])('flags %j as not feeding', (text) => {
+    expect(ids(text, 'neonatal')).toContain('NEO_NOT_FEEDING');
+  });
+
+  it.each([
+    'I had a fit this morning',
+    'she has fits',
+    'my wife started fitting',
+    'the baby had a fit',
+    'she got a fit last night',
+  ])('flags %j as a convulsion', (text) => {
+    const flags = ids(text, 'unset');
+    expect(flags.some((f) => f.endsWith('_CONVULSION'))).toBe(true);
+  });
+
+  it('does not treat everyday uses of "fit" as a convulsion', () => {
+    expect(ids('the wrapper fits her well', 'maternal')).not.toContain('MAT_CONVULSION');
+    expect(ids('she is fit and healthy', 'maternal')).not.toContain('MAT_CONVULSION');
+  });
+
+  it('routes "not feeding well" to the lower tier, not to emergency', () => {
+    const flags = ids('the baby is not feeding well', 'neonatal');
+    expect(flags).toContain('NEO_REDUCED_FEEDING');
+    expect(flags).not.toContain('NEO_NOT_FEEDING');
+  });
+
+  it.each([
+    'he feels cold',
+    'the baby feels very cold',
+    'his body is very hot',
+    'the baby is cold to touch',
+  ])('flags %j as a temperature extreme', (text) => {
+    expect(ids(text, 'neonatal')).toContain('NEO_TEMP_EXTREME');
+  });
+});
+
 describe('lower-tier rules', () => {
   it('flags cord infection as a facility visit, not an emergency', () => {
     const { hits, urgency } = evaluateRedFlags({

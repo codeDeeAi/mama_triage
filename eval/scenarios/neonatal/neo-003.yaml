@@ -1,0 +1,21 @@
+id: NEO-003
+pathway: neonatal
+language: en
+split: smoke
+gold_urgency: self_care
+gold_source: "VERIFY: WHO IMCI — young infant with no danger signs; routine feeding advice"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+profile:
+  age_days: 20
+  presenting: frequent feeding, no danger signs
+turns:
+  - my baby is 3 weeks old and wants to feed very often, is that normal
+  - he is feeding well, no fever, breathing is normal and he is alert
+expect:
+  must_mention:
+    - health facility
+notes: >
+  A reassurance case. The bank needs these: with only emergency scenarios, accuracy and
+  kappa are trivially inflated and the confusion matrix has a single populated cell.
+  Also tests that the negation guard does not escalate a wholly reassuring report.

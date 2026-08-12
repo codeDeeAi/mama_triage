@@ -24,19 +24,6 @@ const PEPPER = 'test-pepper-'.padEnd(64, 'x');
 let db: Db;
 let available = false;
 
-/**
- * Only ever truncate a database on the local machine. A stray TEST_DATABASE_URL pointing
- * at anything else must not have its contents destroyed by a test run.
- */
-function isLocal(url: string): boolean {
-  try {
-    const host = new URL(url).hostname;
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
-  } catch {
-    return false;
-  }
-}
-
 beforeAll(async () => {
   db = createDb(DATABASE_URL, 4);
   available = await db.healthy();
@@ -46,14 +33,6 @@ beforeAll(async () => {
     return;
   }
 
-  // Start from a clean slate so aggregate assertions describe this run only, and so
-  // residue from a previously failing run cannot mask a regression.
-  if (isLocal(DATABASE_URL)) {
-    await db.query(
-      `TRUNCATE audit_log, messages, triage_outcomes, sessions, webhook_events
-         RESTART IDENTITY CASCADE`,
-    );
-  }
 });
 
 afterAll(async () => {

@@ -1,0 +1,28 @@
+id: NEO-001
+pathway: neonatal
+language: en
+split: smoke
+gold_urgency: emergency
+gold_source: "VERIFY: WHO IMCI — young infant general danger signs (not able to feed)"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+profile:
+  age_days: 6
+  presenting: not feeding since morning, feels cold, very sleepy
+turns:
+  - my baby is 6 days old and has not been sucking since morning
+  - he feels cold and he is very sleepy
+expect:
+  red_flags_any_of:
+    - NEO_NOT_FEEDING
+    - NEO_TEMP_EXTREME
+    - NEO_LETHARGY
+  must_mention:
+    - health facility
+  must_not_mention:
+    - wait
+    - tomorrow
+notes: >
+  Classic young-infant sepsis presentation: non-specific, and the combination of poor
+  feeding with temperature instability is what carries the urgency. Gold standard must be
+  confirmed against the IMCI young-infant chart before this is reported.

@@ -4,6 +4,10 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/test'],
   testMatch: ['**/*.spec.ts'],
+
+  // Clears the test database once, before any worker starts. Doing this per-file would
+  // let one parallel worker wipe rows another was using.
+  globalSetup: '<rootDir>/test/globalSetup.ts',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

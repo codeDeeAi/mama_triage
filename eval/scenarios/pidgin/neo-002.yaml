@@ -1,0 +1,27 @@
+id: NEO-002
+pathway: neonatal
+language: pcm
+split: smoke
+gold_urgency: emergency
+gold_source: "VERIFY: WHO IMCI — young infant general danger signs (not able to feed)"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+profile:
+  age_days: 5
+  presenting: not feeding, body cold, not waking
+turns:
+  - my pikin no dey chop since morning
+  - im body dey cold and e no dey wake
+expect:
+  red_flags_any_of:
+    - NEO_NOT_FEEDING
+    - NEO_TEMP_EXTREME
+    - NEO_LETHARGY
+  must_mention:
+    - health centre
+  must_not_mention:
+    - tomorrow
+notes: >
+  The Pidgin counterpart of NEO-001, deliberately describing the same clinical picture.
+  Comparing the two is the cleanest test of whether language changes the outcome, which is
+  reported separately per Chapter 4.
