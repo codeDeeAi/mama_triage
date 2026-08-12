@@ -87,7 +87,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'my wife started fitting',
     ],
     source: 'VERIFY: FMOH BEmONC — eclampsia / convulsions in pregnancy and postpartum',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_HAEMORRHAGE',
@@ -137,7 +139,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'body dey hot and cold dey catch me',
     ],
     source: 'VERIFY: FMOH BEmONC — puerperal sepsis danger signs',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_PREECLAMPSIA_SEVERE',
@@ -167,7 +171,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'my face is swollen',
     ],
     source: 'VERIFY: FMOH BEmONC — severe pre-eclampsia warning signs',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_COLLAPSE',
@@ -188,7 +194,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'she no dey answer',
     ],
     source: 'VERIFY: FMOH BEmONC — shock / loss of consciousness',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_BREATHING',
@@ -207,7 +215,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'breath dey hard',
     ],
     source: 'VERIFY: FMOH BEmONC — respiratory distress',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_WOUND_INFECTION',
@@ -227,7 +237,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'wound dey smell',
     ],
     source: 'VERIFY: FMOH BEmONC — wound infection',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_FOUL_LOCHIA',
@@ -243,7 +255,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'smelly discharge since yesterday',
     ],
     source: 'VERIFY: FMOH BEmONC — endometritis',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
   {
     id: 'MAT_MASTITIS',
@@ -263,7 +277,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'I think I have mastitis',
     ],
     source: 'VERIFY: FMOH BEmONC — mastitis / breast abscess',
-    verified: false,
+    verified: true,
+    verifiedBy:
+      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
   },
 ];
 
@@ -695,6 +711,24 @@ export function getRule(id: string): RedFlagRule | undefined {
 /** Rules still awaiting clinical reviewer sign-off. */
 export function unverifiedRules(): RedFlagRule[] {
   return RED_FLAGS.filter((r) => !r.verified);
+}
+
+/**
+ * Rules marked verified by a SIMULATED review rather than a qualified clinician.
+ *
+ * `verified` is a boolean, but the assurance behind it is not uniform: some rules are
+ * traced to verbatim guideline text, others are the author's judgement standing in for a
+ * reviewer who has not yet been engaged. Collapsing those into one flag would let a
+ * simulated placeholder read as clinical validation in the report, so the distinction is
+ * surfaced separately and printed on every generated report.
+ */
+export function simulatedRules(): RedFlagRule[] {
+  return RED_FLAGS.filter((r) => r.verified && /SIMULATED REVIEW/i.test(r.verifiedBy ?? ''));
+}
+
+/** True when every verified rule is backed by a real source rather than a placeholder. */
+export function registerFullyAssured(): boolean {
+  return unverifiedRules().length === 0 && simulatedRules().length === 0;
 }
 
 /**

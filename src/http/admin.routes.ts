@@ -14,7 +14,13 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { detectDistress } from '../safety/distress';
-import { evaluateRedFlags, RED_FLAGS, unverifiedRules } from '../safety/redFlags';
+import {
+  evaluateRedFlags,
+  RED_FLAGS,
+  registerFullyAssured,
+  simulatedRules,
+  unverifiedRules,
+} from '../safety/redFlags';
 import { buildEmergencyMessage } from '../orchestrator/render';
 import { ratchet } from '../safety/ratchet';
 import { runAssessmentTurn, type AssessmentDeps } from '../orchestrator/assessment';
@@ -67,11 +73,18 @@ export function createAdminRouter(deps: AdminDeps): Router {
   /** Register status — lets the runner check the verification gate before a run. */
   router.get('/admin/register', (_req: Request, res: Response) => {
     const pending = unverifiedRules();
+    const simulated = simulatedRules();
     res.json({
       total: RED_FLAGS.length,
       verified: RED_FLAGS.length - pending.length,
       pending: pending.map((r) => r.id),
+      // Verified by a placeholder rather than a clinician. Reported separately so a
+      // simulated review cannot read as clinical validation.
+      simulated: simulated.map((r) => r.id),
+      // The gate the evaluation runner uses: every rule has a decision.
       reportable: pending.length === 0,
+      // The stronger claim: every decision is backed by a real source.
+      fullyAssured: registerFullyAssured(),
     });
   });
 

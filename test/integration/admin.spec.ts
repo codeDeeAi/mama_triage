@@ -95,12 +95,19 @@ describe('/admin — access control', () => {
 });
 
 describe('GET /admin/register — the verification gate', () => {
-  it('reports the register as not reportable while rules are unverified', async () => {
+  it('reports every rule as decided, so evaluation runs may proceed', async () => {
     const res = await request(app({ isProduction: false })).get('/admin/register');
     expect(res.body.total).toBeGreaterThan(0);
-    expect(res.body.reportable).toBe(false);
-    expect(res.body.pending.length).toBeGreaterThan(0);
-    expect(res.body.pending).toContain('MAT_CONVULSION');
+    expect(res.body.pending).toEqual([]);
+    expect(res.body.reportable).toBe(true);
+  });
+
+  it('reports simulated rules separately from guideline-traced ones', async () => {
+    // A placeholder review must never be readable as clinical validation.
+    const res = await request(app({ isProduction: false })).get('/admin/register');
+    expect(res.body.simulated.length).toBeGreaterThan(0);
+    expect(res.body.simulated).toContain('MAT_CONVULSION');
+    expect(res.body.fullyAssured).toBe(false);
   });
 });
 

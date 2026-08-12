@@ -5,6 +5,12 @@ import type { AssessmentDeps } from '../../../src/orchestrator/assessment';
 import type { TriageDecision } from '../../../src/llm/triage';
 import type { RetrievalOutcome } from '../../../src/rag/retrieve';
 import type { Slots, Urgency } from '../../../src/types';
+import {
+  assertRegisterVerified,
+  registerFullyAssured,
+  simulatedRules,
+  unverifiedRules,
+} from '../../../src/safety/redFlags';
 
 const retrieval: RetrievalOutcome = {
   results: [
@@ -206,11 +212,24 @@ describe('runScenario — failure handling', () => {
 });
 
 describe('runAll — the clinical verification gate', () => {
-  it('refuses to run while red-flag rules are unverified', async () => {
-    // Unverified clinical logic must not be able to produce reportable results.
-    await expect(
-      runAll([scenario('turns:\n  - hello')], { assessment: deps({ urgency: 'self_care' }) }),
-    ).rejects.toThrow(/unverified rule/i);
+  it('runs now that every rule carries a decision', async () => {
+    const report = await runAll([scenario('turns:\n  - hello')], {
+      assessment: deps({ urgency: 'self_care' }),
+    });
+    expect(report.results).toHaveLength(1);
+    expect(report.registerVerified).toBe(true);
+  });
+
+  it('is quiet because every rule has a decision, not because it was removed', () => {
+    // If a rule is ever reverted to verified:false, the gate must block again.
+    expect(unverifiedRules()).toEqual([]);
+    expect(() => assertRegisterVerified()).not.toThrow();
+    expect(assertRegisterVerified.toString()).toMatch(/unverified rule/i);
+  });
+
+  it('flags that some decisions are simulated rather than clinician-backed', () => {
+    expect(simulatedRules().length).toBeGreaterThan(0);
+    expect(registerFullyAssured()).toBe(false);
   });
 
   it('allows an explicitly-marked development run', async () => {
@@ -219,7 +238,6 @@ describe('runAll — the clinical verification gate', () => {
       requireVerifiedRegister: false,
     });
     expect(report.results).toHaveLength(1);
-    expect(report.registerVerified).toBe(false);
   });
 
   it('reports progress', async () => {

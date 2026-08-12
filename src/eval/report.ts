@@ -9,6 +9,7 @@
 import { URGENCY_VALUES, type Urgency } from '../types';
 import type { EvaluationSummary, EvalResult } from './metrics';
 import { groupBy, summarise } from './metrics';
+import { simulatedRules } from '../safety/redFlags';
 
 export interface ReportContext {
   runLabel: string;
@@ -54,6 +55,18 @@ export function renderMarkdown(results: readonly EvalResult[], ctx: ReportContex
     out.push('');
   }
 
+  const simulated = simulatedRules();
+  if (simulated.length > 0) {
+    out.push(
+      `> ⚠️ **${simulated.length} red-flag rule(s) carry a SIMULATED review, not clinical ` +
+        'sign-off.** Their urgency was set by the author standing in for a reviewer who ' +
+        'has not yet been engaged. Any figure derived from these rules is provisional and ' +
+        'must not be presented as guideline-benchmarked: ' +
+        simulated.map((r) => `\`${r.id}\``).join(', ') + '.',
+    );
+    out.push('');
+  }
+
   if (ctx.split !== 'holdout') {
     out.push(
       `> ℹ️ This run used the **${ctx.split}** split. Final reported figures must come ` +
@@ -74,6 +87,9 @@ export function renderMarkdown(results: readonly EvalResult[], ctx: ReportContex
   out.push(`| Split | ${ctx.split} |`);
   out.push(`| Scenarios | ${s.n} |`);
   out.push(`| Register verified | ${ctx.registerVerified ? 'yes' : '**no**'} |`);
+  out.push(
+    `| Rules on simulated review | ${simulated.length === 0 ? 'none' : `**${simulated.length}**`} |`,
+  );
   out.push(`| Started | ${ctx.startedAt.toISOString()} |`);
   out.push(
     `| Duration | ${((ctx.finishedAt.getTime() - ctx.startedAt.getTime()) / 1000).toFixed(1)}s |`,

@@ -317,6 +317,7 @@ describe('MessageTransport', () => {
     const t = new MetaCloudTransport({} as never);
     expect(t.capabilities).toEqual({
       inbound: true,
+      freeTextOutbound: true,
       interactiveButtons: true,
       provider: 'meta-cloud-api',
     });

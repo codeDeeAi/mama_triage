@@ -21,6 +21,15 @@ import type { WhatsAppClient } from './client';
 export interface TransportCapabilities {
   /** False for send-only providers. Without this the system cannot operate. */
   inbound: boolean;
+  /**
+   * Whether arbitrary text can be sent.
+   *
+   * Several CPaaS resellers expose WhatsApp only through pre-approved templates: you
+   * supply a `template_code` and a list of parameters, not a message body. That is fine
+   * for OTPs and order updates, and fatal for triage — every turn of an assessment is
+   * novel text written by the model, and no template can enumerate it in advance.
+   */
+  freeTextOutbound: boolean;
   /** Native interactive reply buttons. When false, buttons render as numbered text. */
   interactiveButtons: boolean;
   /** Provider name, recorded in logs and in the report's deployment section. */
@@ -60,6 +69,7 @@ export function renderOptionsAsText(
 export class MetaCloudTransport implements MessageTransport {
   readonly capabilities: TransportCapabilities = {
     inbound: true,
+    freeTextOutbound: true,
     interactiveButtons: true,
     provider: 'meta-cloud-api',
   };
@@ -95,6 +105,7 @@ export class TextOnlyTransport implements MessageTransport {
   ) {
     this.capabilities = {
       inbound: opts.inbound,
+      freeTextOutbound: true,
       interactiveButtons: false,
       provider: opts.provider,
     };
@@ -123,6 +134,14 @@ export function assertTransportUsable(t: MessageTransport): void {
         `A triage system is inbound-driven: without a webhook for incoming messages it ` +
         `cannot receive a single symptom description. Use a provider with two-way ` +
         `messaging (e.g. the Meta WhatsApp Business Cloud API).`,
+    );
+  }
+  if (!t.capabilities.freeTextOutbound) {
+    throw new Error(
+      `transport "${t.capabilities.provider}" can only send pre-approved templates. ` +
+        `Every turn of a triage assessment is novel text — the question the model asks ` +
+        `next, and the advice it gives — so no fixed set of templates can carry it. ` +
+        `Use a provider that permits free-text session messages.`,
     );
   }
 }

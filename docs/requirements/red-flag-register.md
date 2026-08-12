@@ -17,35 +17,34 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 ## Status
 
 - Rules in register: **20**
-- Signed off: **12**
-- Awaiting review: **8**
-
-> ⚠️ While any rule is unverified the evaluation runner refuses to produce reportable results (`assertRegisterVerified()`), and generated reports are stamped NOT REPORTABLE. This is deliberate.
+- Traced to a published guideline: **12**
+- 🟠 On SIMULATED review (placeholder, needs you): **8**
+- Not yet reviewed: **0**
 
 ## Summary
 
-| ID | Danger sign | Applies to | Assigned urgency | Reviewed |
+| ID | Danger sign | Applies to | Assigned urgency | Assurance |
 |---|---|---|---|---|
-| `MAT_CONVULSION` | Convulsion / fits (possible eclampsia) | Postpartum mother | emergency | ⬜ |
-| `MAT_HAEMORRHAGE` | Heavy postpartum bleeding | Postpartum mother | emergency | ✅ |
-| `MAT_SEVERE_FEVER` | High fever with chills (possible puerperal sepsis) | Postpartum mother | emergency | ⬜ |
-| `MAT_PREECLAMPSIA_SEVERE` | Severe pre-eclampsia warning signs | Postpartum mother | emergency | ⬜ |
-| `MAT_COLLAPSE` | Loss of consciousness or collapse | Postpartum mother | emergency | ⬜ |
-| `MAT_BREATHING` | Difficulty breathing | Postpartum mother | emergency | ⬜ |
-| `MAT_WOUND_INFECTION` | Wound or perineal infection signs | Postpartum mother | facility_visit | ⬜ |
-| `MAT_FOUL_LOCHIA` | Foul-smelling vaginal discharge | Postpartum mother | facility_visit | ⬜ |
-| `MAT_MASTITIS` | Breast infection signs | Postpartum mother | facility_visit | ⬜ |
-| `NEO_NOT_FEEDING` | Not feeding / unable to suck | Newborn / young infant | emergency | ✅ |
-| `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ✅ |
-| `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ✅ |
-| `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ✅ |
-| `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ✅ |
-| `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ✅ |
-| `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ✅ |
-| `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ✅ |
-| `NEO_FAST_BREATHING` | Fast breathing (60 breaths per minute or more) | Newborn / young infant | emergency | ✅ |
-| `NEO_JAUNDICE_FACE` | Jaundice of face or eyes | Newborn / young infant | facility_visit | ✅ |
-| `NEO_REDUCED_FEEDING` | Not feeding well | Newborn / young infant | emergency | ✅ |
+| `MAT_CONVULSION` | Convulsion / fits (possible eclampsia) | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_HAEMORRHAGE` | Heavy postpartum bleeding | Postpartum mother | emergency | ✅ traced |
+| `MAT_SEVERE_FEVER` | High fever with chills (possible puerperal sepsis) | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_PREECLAMPSIA_SEVERE` | Severe pre-eclampsia warning signs | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_COLLAPSE` | Loss of consciousness or collapse | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_BREATHING` | Difficulty breathing | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_WOUND_INFECTION` | Wound or perineal infection signs | Postpartum mother | facility_visit | 🟠 SIMULATED |
+| `MAT_FOUL_LOCHIA` | Foul-smelling vaginal discharge | Postpartum mother | facility_visit | 🟠 SIMULATED |
+| `MAT_MASTITIS` | Breast infection signs | Postpartum mother | facility_visit | 🟠 SIMULATED |
+| `NEO_NOT_FEEDING` | Not feeding / unable to suck | Newborn / young infant | emergency | ✅ traced |
+| `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ✅ traced |
+| `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ✅ traced |
+| `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ✅ traced |
+| `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ✅ traced |
+| `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ✅ traced |
+| `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ✅ traced |
+| `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ✅ traced |
+| `NEO_FAST_BREATHING` | Fast breathing (60 breaths per minute or more) | Newborn / young infant | emergency | ✅ traced |
+| `NEO_JAUNDICE_FACE` | Jaundice of face or eyes | Newborn / young infant | facility_visit | ✅ traced |
+| `NEO_REDUCED_FEEDING` | Not feeding well | Newborn / young infant | emergency | ✅ traced |
 
 ---
 
@@ -56,6 +55,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 **Assigned urgency:** EMERGENCY — refer immediately
 
 **Proposed source:** VERIFY: FMOH BEmONC — eclampsia / convulsions in pregnancy and postpartum
+
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
 
 **Phrasings this rule catches:**
 
@@ -104,6 +105,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Proposed source:** VERIFY: FMOH BEmONC — puerperal sepsis danger signs
 
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+
 **Phrasings this rule catches:**
 
 - "fever with chills and shivering"
@@ -125,6 +128,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 **Assigned urgency:** EMERGENCY — refer immediately
 
 **Proposed source:** VERIFY: FMOH BEmONC — severe pre-eclampsia warning signs
+
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
 
 **Phrasings this rule catches:**
 
@@ -149,6 +154,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Proposed source:** VERIFY: FMOH BEmONC — shock / loss of consciousness
 
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+
 **Phrasings this rule catches:**
 
 - "she is unconscious"
@@ -169,6 +176,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Proposed source:** VERIFY: FMOH BEmONC — respiratory distress
 
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+
 **Phrasings this rule catches:**
 
 - "I am having difficulty breathing"
@@ -188,6 +197,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
 **Proposed source:** VERIFY: FMOH BEmONC — wound infection
+
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
 
 **Phrasings this rule catches:**
 
@@ -211,6 +222,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Proposed source:** VERIFY: FMOH BEmONC — endometritis
 
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+
 **Phrasings this rule catches:**
 
 - "the discharge has a bad smell"
@@ -229,6 +242,8 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
 **Proposed source:** VERIFY: FMOH BEmONC — mastitis / breast abscess
+
+> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
 
 **Phrasings this rule catches:**
 

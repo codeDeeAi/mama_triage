@@ -11,7 +11,7 @@
  * Run with: npm run docs:register
  */
 
-import { RED_FLAGS, type RedFlagRule } from './redFlags';
+import { RED_FLAGS, simulatedRules, type RedFlagRule } from './redFlags';
 import type { Urgency } from '../types';
 
 const URGENCY_LABEL: Record<Urgency, string> = {
@@ -29,6 +29,9 @@ const PATHWAY_LABEL: Record<string, string> = {
 export function renderReviewDoc(rules: readonly RedFlagRule[] = RED_FLAGS): string {
   const out: string[] = [];
   const pending = rules.filter((r) => !r.verified);
+  const simulated = new Set(simulatedRules().map((r) => r.id));
+  const assurance = (r: RedFlagRule): string =>
+    !r.verified ? '⬜ not reviewed' : simulated.has(r.id) ? '🟠 SIMULATED' : '✅ traced';
 
   out.push('# Red-flag register — clinical review and sign-off');
   out.push('');
@@ -70,8 +73,9 @@ export function renderReviewDoc(rules: readonly RedFlagRule[] = RED_FLAGS): stri
   out.push('## Status');
   out.push('');
   out.push(`- Rules in register: **${rules.length}**`);
-  out.push(`- Signed off: **${rules.length - pending.length}**`);
-  out.push(`- Awaiting review: **${pending.length}**`);
+  out.push(`- Traced to a published guideline: **${rules.length - pending.length - simulated.size}**`);
+  out.push(`- 🟠 On SIMULATED review (placeholder, needs you): **${simulated.size}**`);
+  out.push(`- Not yet reviewed: **${pending.length}**`);
   out.push('');
   if (pending.length > 0) {
     out.push(
@@ -84,11 +88,11 @@ export function renderReviewDoc(rules: readonly RedFlagRule[] = RED_FLAGS): stri
 
   out.push('## Summary');
   out.push('');
-  out.push('| ID | Danger sign | Applies to | Assigned urgency | Reviewed |');
+  out.push('| ID | Danger sign | Applies to | Assigned urgency | Assurance |');
   out.push('|---|---|---|---|---|');
   for (const r of rules) {
     out.push(
-      `| \`${r.id}\` | ${r.label} | ${PATHWAY_LABEL[r.pathway]} | ${r.urgency} | ${r.verified ? '✅' : '⬜'} |`,
+      `| \`${r.id}\` | ${r.label} | ${PATHWAY_LABEL[r.pathway]} | ${r.urgency} | ${assurance(r)} |`,
     );
   }
   out.push('');
@@ -109,6 +113,14 @@ export function renderReviewDoc(rules: readonly RedFlagRule[] = RED_FLAGS): stri
       out.push('');
       out.push(`**Proposed source:** ${r.source}`);
       out.push('');
+      if (simulated.has(r.id)) {
+        out.push(
+          '> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your ' +
+            'judgement here replaces a placeholder — please do not assume it has already ' +
+            'been checked.',
+        );
+        out.push('');
+      }
       out.push('**Phrasings this rule catches:**');
       out.push('');
       for (const example of r.examples) out.push(`- "${example}"`);
