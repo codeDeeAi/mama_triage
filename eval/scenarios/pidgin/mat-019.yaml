@@ -1,0 +1,13 @@
+id: MAT-019
+pathway: maternal
+language: pcm
+split: holdout
+gold_urgency: emergency
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my head dey pain me well well and my eye dey blur"
+expect:
+  red_flags_any_of:
+    - "MAT_PREECLAMPSIA_SEVERE"

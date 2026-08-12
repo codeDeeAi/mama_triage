@@ -1,0 +1,13 @@
+id: MAT-022
+pathway: maternal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my discharge has started to smell unpleasant since yesterday"
+expect:
+  red_flags_any_of:
+    - "MAT_FOUL_LOCHIA"

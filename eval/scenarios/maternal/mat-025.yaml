@@ -1,0 +1,11 @@
+id: MAT-025
+pathway: maternal
+language: en
+split: holdout
+gold_urgency: facility_visit
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "I have had a mild fever for two days but no chills and no pain"
+notes: "Mild fever without systemic signs — tests tier discrimination."

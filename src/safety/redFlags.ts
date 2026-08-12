@@ -100,7 +100,9 @@ const MATERNAL_RULES: RedFlagRule[] = [
       /(?:pad|cloth|wrapper)[^.]{0,25}soak/i,
       /bleeding[^.]{0,25}(?:heav|plenty|too much|a lot|not stop|won'?t stop)/i,
       /(?:heavy|plenty|too much)[^.]{0,15}(?:bleeding|blood)/i,
-      /blood\s+dey\s+(?:rush|comot|pour)/i,
+      // Adverbs commonly sit between subject and verb in Pidgin: "blood JUST dey rush".
+      // Requiring adjacency here missed a genuine haemorrhage scenario.
+      /blood\s+(?:\w+\s+){0,2}dey\s+(?:rush|comot|pour|waka)/i,
       /\bhaemorrhag|\bhemorrhag/i,
       /passing\s+(?:big\s+)?clots?/i,
     ],
@@ -108,6 +110,7 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'I am soaking a pad every hour',
       'bleeding too much since morning',
       'blood dey rush comot',
+      'blood just dey rush comot plenty',
       'the bleeding is heavy',
     ],
     source: 'VERIFY: FMOH BEmONC — primary postpartum haemorrhage',
@@ -279,6 +282,9 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /(?:\bnot|\bnever|\w+n'?t)\s+(?:been\s+)?(?:able\s+to\s+)?(?:feed|fed|feeding|suck|sucking|sucked|breastfeed|breastfeeding|drink|drinking|eat|eaten|eating)\b(?!\s+well)/i,
       /(?:refus|reject)(?:e[sd]|ing)?[^.]{0,20}(?:breast|milk|feed)/i,
       /(?:no|never)\s+dey\s+(?:chop|suck|breastfeed|drink)\b(?!\s+well)/i,
+      // "no gree" = refuses to. A separate idiom from "no dey", and the commoner
+      // way of saying a baby is refusing the breast.
+      /no\s+gree\s+(?:chop|suck|breastfeed|drink|take)/i,
       /(?:can'?t|cannot|unable\s+to)\s+(?:suck|feed|breastfeed)/i,
       /stopped\s+(?:feeding|sucking|breastfeeding|eating)/i,
       /no\s+fit\s+(?:suck|chop)/i,
@@ -288,6 +294,7 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'he has not fed at all today',
       'he has not been sucking since morning',
       'pikin no dey chop',
+      'pikin no gree chop',
       'he refuses the breast',
     ],
     source:
@@ -367,12 +374,16 @@ const NEONATAL_RULES: RedFlagRule[] = [
       /\bfloppy\b/i,
       /(?:no|never)\s+dey\s+(?:wake|move|cry)/i,
       /(?:difficult|hard)\s+to\s+wake/i,
+      // WHO IMCI criterion verbatim: "movement only when stimulated".
+      /only\s+move[sd]?\s+when\s+(?:i|you|we|someone)?\s*(?:touch|shake|stimulate|move|hold)/i,
+      /move[sd]?\s+only\s+when\s+(?:touched|stimulated|held|shaken)/i,
       /won'?t\s+wake/i,
     ],
     examples: [
       'baby is very sleepy and floppy',
       'he is difficult to wake',
       'e no dey wake at all',
+      'he only moves when I touch him',
       'he is not moving',
     ],
     source:

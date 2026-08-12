@@ -1,0 +1,14 @@
+id: NEO-030
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Umbilicus red or draining pus' / 'Skin pustules' → LOCAL BACTERIAL INFECTION, oral antibiotic + follow-up 2 days"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "the skin around his belly button is red and there is a little pus"
+expect:
+  red_flags_any_of:
+    - "NEO_CORD_INFECTION"
+notes: "Local bacterial infection, not urgent referral."

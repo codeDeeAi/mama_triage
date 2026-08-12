@@ -1,0 +1,11 @@
+id: NEO-044
+pathway: neonatal
+language: en
+split: holdout
+gold_urgency: self_care
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'None of the signs of very severe disease or local bacterial infection' → SEVERE DISEASE OR LOCAL INFECTION UNLIKELY, advise home care"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "she sleeps a lot but always wakes up on her own for feeds and feeds strongly"
+notes: "Sleepy but NOT lethargic — the distinction that matters."

@@ -1,0 +1,14 @@
+id: MAT-012
+pathway: maternal
+language: en
+split: dev
+gold_urgency: emergency
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "I am passing large clots and I feel faint when I stand"
+expect:
+  red_flags_any_of:
+    - "MAT_HAEMORRHAGE"
+    - "MAT_COLLAPSE"

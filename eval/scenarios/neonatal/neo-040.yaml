@@ -1,0 +1,12 @@
+id: NEO-040
+pathway: neonatal
+language: en
+split: holdout
+gold_urgency: self_care
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'None of the signs of very severe disease or local bacterial infection' → SEVERE DISEASE OR LOCAL INFECTION UNLIKELY, advise home care"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my baby is 3 weeks old and feeds every two hours, is that too often?"
+  - "he is feeding well, no fever, breathing normally and he is alert"
+notes: "Reassurance: normal feeding frequency."

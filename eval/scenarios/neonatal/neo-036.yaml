@@ -1,0 +1,11 @@
+id: NEO-036
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Then check for feeding problem or low weight for age' → FEEDING PROBLEM OR LOW WEIGHT, counselling + follow-up"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "there are white patches inside his mouth that will not wipe off"
+notes: "Thrush."

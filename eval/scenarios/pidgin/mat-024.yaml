@@ -1,0 +1,13 @@
+id: MAT-024
+pathway: maternal
+language: pcm
+split: dev
+gold_urgency: facility_visit
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my breast get lump wey red and e dey pain me"
+expect:
+  red_flags_any_of:
+    - "MAT_MASTITIS"

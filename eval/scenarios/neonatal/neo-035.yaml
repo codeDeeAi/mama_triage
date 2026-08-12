@@ -1,0 +1,11 @@
+id: NEO-035
+pathway: neonatal
+language: en
+split: holdout
+gold_urgency: facility_visit
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Then check for feeding problem or low weight for age' → FEEDING PROBLEM OR LOW WEIGHT, counselling + follow-up"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "he only breastfeeds about four times a day and I also give him water"
+notes: "Feeding problem: <8 feeds in 24h plus other drinks."

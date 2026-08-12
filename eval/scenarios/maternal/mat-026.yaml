@@ -1,0 +1,11 @@
+id: MAT-026
+pathway: maternal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "I have been crying every day for two weeks and cannot enjoy my baby"
+notes: "Postnatal low mood needing assessment, not an emergency."

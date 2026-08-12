@@ -1,0 +1,11 @@
+id: NEO-042
+pathway: neonatal
+language: en
+split: holdout
+gold_urgency: self_care
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'None of the signs of very severe disease or local bacterial infection' → SEVERE DISEASE OR LOCAL INFECTION UNLIKELY, advise home care"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "his cord stump is drying and about to fall off, there is no redness or smell"
+notes: "Normal cord separation — must not be confused with cord infection."

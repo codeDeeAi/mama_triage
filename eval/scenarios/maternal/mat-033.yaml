@@ -1,0 +1,10 @@
+id: MAT-033
+pathway: maternal
+language: en
+split: dev
+gold_urgency: self_care
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my stitches are healing well, just a little itchy"

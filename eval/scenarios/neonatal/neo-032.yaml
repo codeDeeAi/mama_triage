@@ -1,0 +1,11 @@
+id: NEO-032
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Umbilicus red or draining pus' / 'Skin pustules' → LOCAL BACTERIAL INFECTION, oral antibiotic + follow-up 2 days"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "he has small white spots like pimples on his skin, about ten of them"
+notes: "Skin pustules. No pattern for this — tests the model."

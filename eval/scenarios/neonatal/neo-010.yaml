@@ -1,0 +1,15 @@
+id: NEO-010
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: emergency
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Check for very severe disease and local bacterial infection' → VERY SEVERE DISEASE, refer URGENTLY"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my baby is 4 days old and is not feeding well since last night"
+expect:
+  red_flags_any_of:
+    - "NEO_REDUCED_FEEDING"
+    - "NEO_NOT_FEEDING"
+notes: "Not feeding well is the first sign listed under VERY SEVERE DISEASE."

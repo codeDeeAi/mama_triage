@@ -1,0 +1,14 @@
+id: MAT-020
+pathway: maternal
+language: en
+split: dev
+gold_urgency: facility_visit
+gold_source: "PENDING CLINICAL ADJUDICATION: FMOH BEmONC not yet sourced. Provisional gold standard set by the author from general postpartum danger-sign practice; MUST be confirmed by a clinical reviewer before this scenario is used in a reported run."
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my caesarean wound is red and swollen and leaking fluid"
+  - "I have no fever and otherwise feel well"
+expect:
+  red_flags_any_of:
+    - "MAT_WOUND_INFECTION"

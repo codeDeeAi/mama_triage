@@ -1,0 +1,15 @@
+id: NEO-023
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: emergency
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Check for very severe disease and local bacterial infection' → VERY SEVERE DISEASE, refer URGENTLY"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "he is 5 days old, not feeding, and feels cold to touch"
+expect:
+  red_flags_any_of:
+    - "NEO_NOT_FEEDING"
+    - "NEO_TEMP_EXTREME"
+notes: "Classic young-infant sepsis picture."

@@ -85,6 +85,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 - "I am soaking a pad every hour"
 - "bleeding too much since morning"
 - "blood dey rush comot"
+- "blood just dey rush comot plenty"
 - "the bleeding is heavy"
 
 **Also fires when** the assessment records `bleeding` = `soaking_pad_hourly` — that is, when the model has understood the mother to mean this even if she used different words.
@@ -261,6 +262,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 - "he has not fed at all today"
 - "he has not been sucking since morning"
 - "pikin no dey chop"
+- "pikin no gree chop"
 - "he refuses the breast"
 
 **Also fires when** the assessment records `feeding` = `unable_to_feed` — that is, when the model has understood the mother to mean this even if she used different words.
@@ -329,6 +331,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 - "baby is very sleepy and floppy"
 - "he is difficult to wake"
 - "e no dey wake at all"
+- "he only moves when I touch him"
 - "he is not moving"
 
 **Also fires when** the assessment records `activity` = `lethargic_or_unresponsive` — that is, when the model has understood the mother to mean this even if she used different words.

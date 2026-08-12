@@ -1,0 +1,10 @@
+id: NEO-043
+pathway: neonatal
+language: pcm
+split: dev
+gold_urgency: self_care
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'None of the signs of very severe disease or local bacterial infection' → SEVERE DISEASE OR LOCAL INFECTION UNLIKELY, advise home care"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "my pikin dey chop well and dey sleep well, I just wan ask about bathing am"

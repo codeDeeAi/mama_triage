@@ -1,0 +1,14 @@
+id: NEO-033
+pathway: neonatal
+language: en
+split: holdout
+gold_urgency: facility_visit
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Check for jaundice' — jaundice after 24 hours with palms and soles not yellow → JAUNDICE, home care + follow-up 1 day"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "he is 5 days old and his eyes look a bit yellow, but his palms are normal"
+expect:
+  red_flags_any_of:
+    - "NEO_JAUNDICE_FACE"
+notes: "Jaundice after 24h, palms not yellow."

@@ -1,0 +1,14 @@
+id: NEO-015
+pathway: neonatal
+language: en
+split: dev
+gold_urgency: emergency
+gold_source: "WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months — 'Check for very severe disease and local bacterial infection' → VERY SEVERE DISEASE, refer URGENTLY"
+adjudicated_by:
+  - PLACEHOLDER_REVIEWER
+turns:
+  - "I counted his breathing and it was about seventy in a minute"
+expect:
+  red_flags_any_of:
+    - "NEO_FAST_BREATHING"
+notes: "Numeric phrasing above the 60/min threshold; no obvious keyword."
