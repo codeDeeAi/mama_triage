@@ -1,8 +1,12 @@
 
 
+# Local development database.
+#
+# Pinned to the same major version as the deployed server (PostgreSQL 18). Developing
+# against 16 and deploying to 18 invites a difference that only shows up in production.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: mama-triage-pg
     environment:
       POSTGRES_USER: mama
@@ -11,7 +15,10 @@ services:
     ports:
       - '5433:5432'
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PostgreSQL 18's image expects the mount at /var/lib/postgresql and places the
+      # data directory in a version-numbered subdirectory beneath it. Mounting the old
+      # /var/lib/postgresql/data path makes it refuse to start.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mama -d mama_triage']
       interval: 5s

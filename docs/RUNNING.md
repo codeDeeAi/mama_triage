@@ -110,6 +110,9 @@ Restart. The log should read `assessment enabled` with a chunk count.
 | `No messaging channel configured` | Set the `TELEGRAM_*` or `WHATSAPP_*` variables |
 | `Telegram is partially configured` | Both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` are needed |
 | `database unreachable` | `npm run db:up`, then `npm run db:migrate` |
+| `database "mama_triage" does not exist` | Host and credentials are fine; create it: `psql "<url>/postgres" -c 'CREATE DATABASE mama_triage;'` |
+| `server does not support SSL` | The server has `ssl = off`. See the TLS note under deployment — do not carry clinical data over an unencrypted public connection |
+| Postgres container will not start after a version bump | PG18 expects the volume mounted at `/var/lib/postgresql`, not `.../data`. Recreate with `docker compose down -v` |
 | `assessment disabled` in the log | No LLM keys, or no index — expected until `kb:ingest` has run |
 | Port 5432 already in use | Deliberate: this project uses **5433** |
 | Bot does not respond to polling | A webhook is registered. `npm run telegram:poll` deletes it on start |
@@ -120,6 +123,28 @@ Restart. The log should read `assessment enabled` with a chunk count.
 
 You need three things: a container host, a managed PostgreSQL, and an HTTPS URL for the
 webhook.
+
+### Option A — Google Cloud Run (what Chapter 3 specifies)
+
+### Using your own PostgreSQL server
+
+If you are deploying to a VPS rather than a managed service, two things must be true
+before the connection string will work:
+
+```bash
+# 1. The database has to exist. Connect to the default `postgres` database to create it.
+psql "postgres://USER:PASSWORD@HOST:PORT/postgres" -c "CREATE DATABASE mama_triage;"
+
+# 2. Then migrate.
+DATABASE_URL="postgres://USER:PASSWORD@HOST:PORT/mama_triage" npm run db:migrate
+```
+
+> ⚠️ **TLS is not optional for a remote database.** If `SHOW ssl` returns `off`, the
+> credentials and every message a mother sends cross the internet in plaintext. Either
+> enable TLS on the server and append `?sslmode=require`, or do not expose Postgres
+> publicly at all — bind it to localhost and reach it over a private network or an SSH
+> tunnel. The privacy notice tells mothers their conversations are protected; an
+> unencrypted public connection contradicts that.
 
 ### Option A — Google Cloud Run (what Chapter 3 specifies)
 
