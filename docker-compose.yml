@@ -1,5 +1,4 @@
-# Local development dependencies. Production uses Cloud SQL (Postgres 16) and an
-# in-image Chroma index; see IMPLEMENTATION_PLAN.md section 15.
+
 
 services:
   postgres:
@@ -9,8 +8,6 @@ services:
       POSTGRES_USER: mama
       POSTGRES_PASSWORD: mama
       POSTGRES_DB: mama_triage
-    # Host port 5433: 5432 is commonly already taken by another local Postgres.
-    # Container-internal port stays 5432.
     ports:
       - '5433:5432'
     volumes:
