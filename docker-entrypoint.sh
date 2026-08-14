@@ -43,7 +43,17 @@ fi
 #
 # The index lives on a volume, so this is once per volume, not once per deploy. It is
 # rebuilt only when the corpus or the embedding model actually changes.
-if [ "$BUILD_INDEX_ON_BOOT" = "true" ]; then
+#
+# On by default, and that default matters. Requiring BUILD_INDEX_ON_BOOT=true meant the
+# whole step was skipped whenever the variable failed to arrive — which is exactly what
+# Coolify does to values declared in a compose file — and the container then started
+# perfectly healthy with no index, answering every mother from the red-flag paths alone.
+# A safety-relevant step should not be silently skippable by a variable going missing.
+#
+#   unset (default) — build when a key is available; warn and continue when it is not
+#   true            — build, and refuse to start if that is impossible
+#   false           — never build
+if [ "$BUILD_INDEX_ON_BOOT" != "false" ]; then
   INDEX_PATH="${CHROMA_PATH:-./knowledge/index}"
   case "$INDEX_PATH" in *.json) : ;; *) INDEX_PATH="$INDEX_PATH/index.json" ;; esac
 
@@ -68,7 +78,9 @@ if [ "$BUILD_INDEX_ON_BOOT" = "true" ]; then
     echo "==> Building the knowledge index (corpus or model changed)..."
     node dist/rag/ingest.js
     echo "==> Knowledge index built."
-  else
+  elif [ "$BUILD_INDEX_ON_BOOT" = "true" ]; then
+    # Explicitly asked for, and impossible. Refusing to start is right here: the operator
+    # said this deployment must be able to assess.
     echo "FATAL: BUILD_INDEX_ON_BOOT=true but VOYAGE_API_KEY is not set, and the" >&2
     echo "       existing index is missing, stale, or a placeholder." >&2
     echo "" >&2
@@ -76,6 +88,13 @@ if [ "$BUILD_INDEX_ON_BOOT" = "true" ]; then
     echo "while looking healthy. Set VOYAGE_API_KEY, or set BUILD_INDEX_ON_BOOT=false" >&2
     echo "to run deliberately without assessment." >&2
     exit 1
+  else
+    # Not asked for either way. Start, but do not pretend this is fine — the red-flag
+    # layer still runs, and taking it offline over a missing key would remove working
+    # safety detection. /readyz reports the reason for anyone checking.
+    echo "WARNING: no knowledge index and no VOYAGE_API_KEY — assessment will be" >&2
+    echo "         disabled. Consent and the deterministic safety layer still run." >&2
+    echo "         Check /readyz for the reason." >&2
   fi
 fi
 

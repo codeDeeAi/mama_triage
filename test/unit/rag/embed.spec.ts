@@ -117,6 +117,52 @@ describe('VoyageEmbedder — retry policy', () => {
     expect(f.calls).toHaveLength(2);
   });
 
+  it('waits for the interval Retry-After asks for, not its own backoff', async () => {
+    // The free tier limits by the minute. Backing off from milliseconds burns every
+    // attempt inside a couple of seconds and fails an ingestion that would have
+    // succeeded by waiting, so the server's own figure has to win.
+    const slept: number[] = [];
+    const impl = (async () => ({
+      ok: false,
+      status: 429,
+      headers: { get: (h: string) => (h === 'retry-after' ? '30' : null) },
+      json: async () => ({}),
+      text: async () => '',
+    })) as unknown as typeof fetch;
+
+    const e = new VoyageEmbedder({
+      apiKey: 'pa-test',
+      model: 'voyage-3',
+      fetchImpl: impl,
+      maxRetries: 2,
+      retryBaseMs: 100,
+      sleep: async (ms) => {
+        slept.push(ms);
+      },
+    });
+
+    await expect(e.embedQuery('x')).rejects.toThrow(/429/);
+    expect(slept).toEqual([30_000, 30_000]);
+  });
+
+  it('falls back to exponential backoff when Retry-After is absent', async () => {
+    const slept: number[] = [];
+    const f = fakeFetch([{ status: 429 }]);
+    const e = new VoyageEmbedder({
+      apiKey: 'pa-test',
+      model: 'voyage-3',
+      fetchImpl: f.impl,
+      maxRetries: 3,
+      retryBaseMs: 1000,
+      sleep: async (ms) => {
+        slept.push(ms);
+      },
+    });
+
+    await expect(e.embedQuery('x')).rejects.toThrow(/429/);
+    expect(slept).toEqual([1000, 2000, 4000]);
+  });
+
   it('does not retry a 401 — a bad key will still be bad', async () => {
     const f = fakeFetch([{ status: 401, body: { error: 'invalid api key' } }]);
     await expect(embedder(f.impl).embedQuery('x')).rejects.toThrow(/401/);

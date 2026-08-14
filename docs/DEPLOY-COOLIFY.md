@@ -163,6 +163,23 @@ Neither blocks a test deployment. Both must be done before a real participant us
 
 ---
 
+## Voyage rate limits
+
+A Voyage account with no payment method on file is capped at **3 requests and 10,000
+tokens per minute**, whatever plan it is on. The corpus is 215 chunks (~55k tokens), so
+ingestion under that cap takes a long time and may not finish at all.
+
+Adding a payment method lifts the cap. It does not mean paying: `voyage-4-lite`,
+`voyage-4` and `voyage-4-large` include 200M free tokens, and this corpus uses a fraction
+of that. The default `voyage-3` is a previous-generation model and is **excluded** from
+the free allowance, so `EMBEDDING_MODEL=voyage-4-lite` is both free and faster.
+
+Ingestion is tuned for the constrained case regardless — 16 chunks per batch, eight
+retries, and it honours the `Retry-After` header rather than its own backoff. Override
+with `EMBED_BATCH_SIZE`, `EMBED_MAX_RETRIES` and `EMBED_RETRY_BASE_MS` if needed.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause |
@@ -170,6 +187,8 @@ Neither blocks a test deployment. Both must be done before a real participant us
 | `FATAL: ... VOYAGE_API_KEY is not set` at boot | Set `VOYAGE_API_KEY` as a runtime environment variable. Build variables have no effect — Coolify blanks them |
 | Build fails, but the error text is not in this repo's Dockerfile | Coolify prepends its own `ARG` block, so reported line numbers do not match the file. Check the deployed commit hash instead |
 | Corpus re-embeds on every deploy | The `knowledge-index` volume is not persisting, or `EMBEDDING_MODEL` is changing between deploys |
+| Ingestion hangs or fails with `Voyage API 429` | No payment method on the Voyage account — 3 RPM / 10k TPM. See the rate-limit section above |
+| `assessment: disabled — ENOENT ... index.json` on `/readyz` | The index was never built. `npm run kb:ensure`, or check the boot logs |
 | `FATAL: database unreachable after 60s` | Check `DATABASE_URL`. Note that `database "x" does not exist` is *not* a credentials error — the database has to be created first |
 | Container healthy, but replies never arrive | The webhook is not set, points at an old domain, or the secret does not match the deployment. Check `getWebhookInfo` |
 | `SSL certificate problem` / `CN=TRAEFIK DEFAULT CERT` | Coolify has not issued a certificate. Set the domain with an `https://` scheme so Let's Encrypt is requested |
