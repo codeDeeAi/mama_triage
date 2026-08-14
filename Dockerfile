@@ -39,7 +39,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY knowledge/sources ./knowledge/sources
 COPY package.json ./
-RUN --mount=type=secret,id=voyage_key \
+RUN --mount=type=secret,id=voyage_key,required=false \
     KEY="$(cat /run/secrets/voyage_key 2>/dev/null || echo "$VOYAGE_API_KEY")"; \
     mkdir -p knowledge/index; \
     if [ -n "$KEY" ]; then \
