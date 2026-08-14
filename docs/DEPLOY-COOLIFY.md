@@ -31,10 +31,9 @@ set to `docker-compose.coolify.yml`.
 **2. Set the environment variables.** All of them are runtime variables — there is
 nothing to set under *Build Variables*.
 
-Coolify cannot put a value behind a build argument for a variable it manages from a
-compose file: it passes `--build-arg VOYAGE_API_KEY` with nothing behind it, and the
-"available at buildtime" flag is not settable on such a variable. So the image no longer
-needs the key at build time. It embeds the corpus on **first boot** instead, using the
+The image needs no build arguments at all, and setting any is pointless: Coolify rewrites
+build args into a bare `--build-arg NAME`, which blanks whatever the compose file set.
+That is why setting `ALLOW_NO_INDEX=true` in the UI changed nothing. It embeds the corpus on **first boot** instead, using the
 same key the app already needs for query embedding — which also keeps the key out of
 image history entirely.
 
@@ -147,7 +146,8 @@ Neither blocks a test deployment. Both must be done before a real participant us
 
 | Symptom | Cause |
 |---|---|
-| `FATAL: ... VOYAGE_API_KEY is not set` at boot | Set `VOYAGE_API_KEY` as a runtime environment variable. It is not a build variable |
+| `FATAL: ... VOYAGE_API_KEY is not set` at boot | Set `VOYAGE_API_KEY` as a runtime environment variable. Build variables have no effect — Coolify blanks them |
+| Build fails, but the error text is not in this repo's Dockerfile | Coolify prepends its own `ARG` block, so reported line numbers do not match the file. Check the deployed commit hash instead |
 | Corpus re-embeds on every deploy | The `knowledge-index` volume is not persisting, or `EMBEDDING_MODEL` is changing between deploys |
 | `FATAL: database unreachable after 60s` | Check `DATABASE_URL`. Note that `database "x" does not exist` is *not* a credentials error — the database has to be created first |
 | Container healthy, but replies never arrive | The Telegram webhook is not set, or is pointing at an old domain. Check `getWebhookInfo` |

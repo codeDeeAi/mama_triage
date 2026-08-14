@@ -4,11 +4,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # No key at build time. Coolify passes `--build-arg VOYAGE_API_KEY` with nothing
-        # behind it, because the build-time flag is not settable on a compose-managed
-        # variable. The index is built on first boot instead — see BUILD_INDEX_ON_BOOT.
-        - ALLOW_NO_INDEX=true
+      # No build args on purpose. Coolify rewrites them into bare `--build-arg NAME`,
+      # which blanks whatever is set here. The index is built on first boot instead —
+      # see BUILD_INDEX_ON_BOOT below.
     environment:
       - SERVICE_FQDN_APP_8080
       - NODE_ENV=production

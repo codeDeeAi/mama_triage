@@ -17,44 +17,38 @@ COPY public ./public
 RUN npm run build
 
 # ---- knowledge index --------------------------------------------------------
-# Built into the image so an evaluation run is pinned to an image digest rather than to
-# whatever was in a vector database that afternoon.
+# Embeds the corpus into the image when a key is available, which pins an evaluation run
+# to an image digest rather than to whatever was in a vector database that afternoon:
 #
-# Supply the key either way:
-#   docker build --secret id=voyage_key,env=VOYAGE_API_KEY .   (preferred)
-#   docker build --build-arg VOYAGE_API_KEY=...                (build args are recorded
-#                                                               in image history)
+#   docker build --secret id=voyage_key,env=VOYAGE_API_KEY .
+#
+# Without a key it ships an empty index and the entrypoint embeds on first boot instead.
+# This stage never fails the build. It used to, to stop a keyless image reaching
+# production, but that guarantee now lives in the entrypoint, which refuses to start on a
+# missing or stale index — a better place for it, because it is checked on every boot
+# rather than once at build time.
+#
+# It also has to live there. Build arguments are not reliably settable on platforms that
+# generate the build command themselves: Coolify passes a bare `--build-arg NAME`, which
+# overrides whatever the compose file set with an empty value. A safety gate that a
+# platform can silently blank is not a safety gate.
 FROM node:20-slim AS index
 WORKDIR /app
 ARG VOYAGE_API_KEY=""
-ARG ALLOW_NO_INDEX="false"
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY knowledge/sources ./knowledge/sources
 COPY package.json ./
 RUN --mount=type=secret,id=voyage_key \
     KEY="$(cat /run/secrets/voyage_key 2>/dev/null || echo "$VOYAGE_API_KEY")"; \
+    mkdir -p knowledge/index; \
     if [ -n "$KEY" ]; then \
       VOYAGE_API_KEY="$KEY" \
       CORPUS_DIR=knowledge/sources \
       CHROMA_PATH=./knowledge/index \
       node dist/rag/ingest.js; \
-    elif [ "$ALLOW_NO_INDEX" = "true" ]; then \
-      echo "WARNING: building without a knowledge index (ALLOW_NO_INDEX=true)."; \
-      echo "The service will start with assessment disabled; safety paths remain active."; \
-      mkdir -p knowledge/index; \
     else \
-      echo "FATAL: no Voyage API key, so there is no knowledge index to ship." >&2; \
-      echo "" >&2; \
-      echo "Without it the container starts but cannot assess anything — it answers" >&2; \
-      echo "every mother with the red-flag paths only. That is a degraded service that" >&2; \
-      echo "looks healthy, which is worse than a build that fails here." >&2; \
-      echo "" >&2; \
-      echo "Supply VOYAGE_API_KEY as a build secret or build argument, or set" >&2; \
-      echo "ALLOW_NO_INDEX=true and build the index on first boot instead" >&2; \
-      echo "(BUILD_INDEX_ON_BOOT=true) — which is what the Coolify compose file does," >&2; \
-      echo "because Coolify cannot supply a value to a compose-managed build arg." >&2; \
-      exit 1; \
+      echo "No Voyage key at build time — the entrypoint will embed on first boot."; \
     fi
 
 # ---- runtime ----------------------------------------------------------------
