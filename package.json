@@ -29,7 +29,8 @@
     "kb:extract": "npm run build && node dist/rag/extract.js",
     "telegram:poll": "npm run build && node dist/telegram/poll.js",
     "css": "tailwindcss -i src/web/styles.css -o public/assets/styles.css --minify",
-    "css:watch": "tailwindcss -i src/web/styles.css -o public/assets/styles.css --watch"
+    "css:watch": "tailwindcss -i src/web/styles.css -o public/assets/styles.css --watch",
+    "telegram:webhook": "npm run build && node dist/telegram/setWebhook.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

@@ -103,14 +103,23 @@ message naming the likely causes, rather than restarting forever against a bad U
 
 ## After the first deploy
 
-**Point Telegram at the deployment.** Replace `<domain>` with your Coolify domain, and use
-the `TELEGRAM_WEBHOOK_SECRET` value Coolify generated:
+**Point Telegram at the deployment.** `TELEGRAM_WEBHOOK_SECRET` must be the value the
+deployment is running with — Coolify generates it as `SERVICE_PASSWORD_TELEGRAMWEBHOOK`,
+and the app rejects any update whose echoed secret does not match.
 
 ```bash
-curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://<domain>/webhook/telegram" \
-  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
+  npm run telegram:webhook -- https://<domain>
 ```
+
+It checks `/healthz` before registering. Telegram accepts a webhook pointed at a URL that
+is not serving, so an unchecked registration fails later as silence rather than as an
+error.
+
+**HTTPS is required, with a certificate from a real CA.** Telegram rejects self-signed
+certificates. A fresh Coolify deployment serves `CN=TRAEFIK DEFAULT CERT` until the domain
+is configured with an `https://` scheme, which is what triggers Let's Encrypt issuance —
+set it in *Configuration → Domains*, not just as a display URL.
 
 Webhook mode replaces long-polling — do not run `npm run telegram:poll` against the same
 bot at the same time, or updates will be delivered to whichever asks first and each
@@ -150,7 +159,8 @@ Neither blocks a test deployment. Both must be done before a real participant us
 | Build fails, but the error text is not in this repo's Dockerfile | Coolify prepends its own `ARG` block, so reported line numbers do not match the file. Check the deployed commit hash instead |
 | Corpus re-embeds on every deploy | The `knowledge-index` volume is not persisting, or `EMBEDDING_MODEL` is changing between deploys |
 | `FATAL: database unreachable after 60s` | Check `DATABASE_URL`. Note that `database "x" does not exist` is *not* a credentials error — the database has to be created first |
-| Container healthy, but replies never arrive | The Telegram webhook is not set, or is pointing at an old domain. Check `getWebhookInfo` |
+| Container healthy, but replies never arrive | The webhook is not set, points at an old domain, or the secret does not match the deployment. Check `getWebhookInfo` |
+| `SSL certificate problem` / `CN=TRAEFIK DEFAULT CERT` | Coolify has not issued a certificate. Set the domain with an `https://` scheme so Let's Encrypt is requested |
 | `assessment disabled` in the logs | `ANTHROPIC_API_KEY` / `VOYAGE_API_KEY` missing at **runtime**. Safety paths still work |
 | Postgres will not start after a version change | PG18 expects the volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data` |
 | Registered mothers stop being recognised | `PHONE_HASH_PEPPER` changed. Identity is an HMAC keyed on it, so it must stay stable for the life of the deployment |
