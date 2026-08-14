@@ -124,7 +124,12 @@ Restart. The log should read `assessment enabled` with a chunk count.
 You need three things: a container host, a managed PostgreSQL, and an HTTPS URL for the
 webhook.
 
-### Option A — Google Cloud Run (what Chapter 3 specifies)
+### Option A — Coolify (simplest; app and database in one compose file)
+
+See **[DEPLOY-COOLIFY.md](./DEPLOY-COOLIFY.md)**. `docker-compose.coolify.yml` brings up
+the application alongside its own Postgres on a private Docker network, which also removes
+the unencrypted-connection problem described above — nothing crosses the public internet,
+so there is no TLS to configure. Migrations run on boot.
 
 ### Using your own PostgreSQL server
 
@@ -146,7 +151,7 @@ DATABASE_URL="postgres://USER:PASSWORD@HOST:PORT/mama_triage" npm run db:migrate
 > tunnel. The privacy notice tells mothers their conversations are protected; an
 > unencrypted public connection contradicts that.
 
-### Option A — Google Cloud Run (what Chapter 3 specifies)
+### Option B — Google Cloud Run (what Chapter 3 specifies)
 
 **1. Create the database**
 
@@ -211,7 +216,7 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 Verify: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` — `pending_update_count`
 should be 0 and `last_error_message` absent.
 
-### Option B — Railway, Render or Fly.io
+### Option C — Railway, Render or Fly.io
 
 Any host that runs a container and offers PostgreSQL works, and all three are
 substantially less fiddly than GCP for a project this size. The steps are the same:

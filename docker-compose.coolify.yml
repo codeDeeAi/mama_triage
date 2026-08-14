@@ -1,0 +1,108 @@
+# Coolify deployment: application + database on a private network.
+#
+# Use this as a "Docker Compose" resource in Coolify, with this repository as the source.
+#
+# The database is deliberately part of this file rather than an external server. The
+# remote Postgres this project was pointed at earlier had `ssl = off` and port 5434 open
+# to the internet, which means credentials and every message a mother sends would cross
+# the public network in plaintext. Running Postgres as a service here fixes that by
+# removing the problem rather than patching it: `postgres` is reachable only on Coolify's
+# internal Docker network, it publishes no host port, and the traffic never leaves the
+# host. That is a stronger position than TLS over an exposed port, and it needs no
+# certificate management.
+#
+# Coolify substitutes its own values for the SERVICE_* variables below — passwords and the
+# identity pepper are generated once and stored, so no secret in this file is a real one.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Set VOYAGE_API_KEY as a *build* variable in Coolify. Without it the build fails
+        # by design: an image with no knowledge index starts up looking healthy but cannot
+        # assess anything.
+        - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+    environment:
+      # Coolify assigns the domain and injects it here.
+      - SERVICE_FQDN_APP_8080
+      - NODE_ENV=production
+      - PORT=8080
+
+      # Internal hostname — resolved on the Docker network, never over the internet.
+      # sslmode is not set because the connection does not leave the host.
+      - DATABASE_URL=postgres://mama:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/mama_triage
+
+      # Single instance behind Coolify, so migrating on boot is the right trade-off:
+      # it removes the "deploy succeeded, schema is stale" failure entirely.
+      - RUN_MIGRATIONS_ON_BOOT=true
+
+      # Generated once by Coolify and then stable. Stability matters more than secrecy
+      # here: the identity hash is an HMAC keyed on this value, so if it changes, every
+      # mother already registered stops being recognised on her next message.
+      - PHONE_HASH_PEPPER=${SERVICE_BASE64_64_PEPPER}
+
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}
+      - TELEGRAM_WEBHOOK_SECRET=${SERVICE_PASSWORD_TELEGRAMWEBHOOK}
+
+      # Optional. Omit and the corresponding feature simply stays off — but WhatsApp is
+      # all-or-nothing: config refuses to start on a partial group, because a channel that
+      # boots and then fails on first message is worse than one that never boots.
+      # WHATSAPP_APP_SECRET is what authenticates the webhook; without it anyone can post
+      # to it, so it is required rather than optional within the group.
+      - WHATSAPP_TOKEN=${WHATSAPP_TOKEN}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
+      - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
+      - KUDISMS_TOKEN=${KUDISMS_TOKEN}
+      - KUDISMS_SENDER_ID=${KUDISMS_SENDER_ID}
+
+      - ADMIN_TOKEN=${SERVICE_PASSWORD_ADMIN}
+      - STUDY_NAME=${STUDY_NAME:-the MIVA maternal health study}
+
+      # The demo route is an unauthenticated chat interface onto the triage engine.
+      # Off unless deliberately enabled.
+      - DEMO_ENABLED=${DEMO_ENABLED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=mama
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_DB=mama_triage
+    volumes:
+      # PostgreSQL 18 expects the mount at /var/lib/postgresql and places the data
+      # directory in a version-numbered subdirectory beneath it. The older
+      # /var/lib/postgresql/data path makes it refuse to start.
+      - pg-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mama -d mama_triage']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # No `ports:` entry, on purpose. The database is reachable from `app` over the Docker
+    # network and from nowhere else. To inspect it, exec into the container or open an SSH
+    # tunnel — do not publish the port to get a GUI client working.
+
+volumes:
+  pg-data:
