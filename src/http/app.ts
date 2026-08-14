@@ -39,6 +39,14 @@ export interface AppDeps extends WebhookDeps {
   telegram?: Pick<TelegramWebhookDeps, 'secretToken' | 'client' | 'handleMessage'>;
   /** Registration surface. Omit to disable it entirely. */
   register?: Omit<RegisterDeps, 'logger'>;
+  /**
+   * Why assessment is or is not available, surfaced on /readyz.
+   *
+   * A mother sees the same "not available right now" message whether the credentials are
+   * missing or the index failed to load. Without this the two are indistinguishable from
+   * outside the container.
+   */
+  assessmentStatus?: () => string;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -124,9 +132,16 @@ export function createApp(deps: AppDeps): Express {
   /** Readiness: dependencies are reachable. Cloud Run uses this to gate traffic. */
   app.get('/readyz', async (_req: Request, res: Response) => {
     const dbOk = await deps.db.healthy();
+    // Assessment status is reported but deliberately does not affect the status code. A
+    // deployment with assessment down still serves consent, pathway selection and the
+    // whole deterministic safety layer, so it is degraded rather than unready — pulling
+    // it out of the load balancer would remove working red-flag detection.
     res.status(dbOk ? 200 : 503).json({
       status: dbOk ? 'ready' : 'degraded',
-      checks: { database: dbOk ? 'ok' : 'unreachable' },
+      checks: {
+        database: dbOk ? 'ok' : 'unreachable',
+        assessment: deps.assessmentStatus?.() ?? 'unknown',
+      },
     });
   });
 

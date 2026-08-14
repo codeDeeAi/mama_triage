@@ -129,8 +129,20 @@ message will be handled once, unpredictably.
 
 ```bash
 curl https://<domain>/healthz   # process is up; does not touch the database
-curl https://<domain>/readyz    # {"status":"ready","checks":{"database":"ok"}}
+curl https://<domain>/readyz    # database and assessment status
 ```
+
+`/readyz` names the assessment state, because a mother is told the same "not available
+right now" whether the credentials are missing or the index failed to load:
+
+```json
+{"status":"ready","checks":{"database":"ok","assessment":"ok (312 chunks, voyage-3)"}}
+{"status":"ready","checks":{"database":"ok","assessment":"disabled — not configured: ANTHROPIC_API_KEY"}}
+```
+
+Assessment being down does not make the deployment unready. Consent, pathway selection
+and the whole deterministic red-flag layer still work, and taking the container out of
+the load balancer would remove those too.
 
 `/healthz` is what the container health check uses, and it deliberately ignores the
 database: a brief database blip should not cause the platform to kill and restart an
@@ -161,6 +173,6 @@ Neither blocks a test deployment. Both must be done before a real participant us
 | `FATAL: database unreachable after 60s` | Check `DATABASE_URL`. Note that `database "x" does not exist` is *not* a credentials error — the database has to be created first |
 | Container healthy, but replies never arrive | The webhook is not set, points at an old domain, or the secret does not match the deployment. Check `getWebhookInfo` |
 | `SSL certificate problem` / `CN=TRAEFIK DEFAULT CERT` | Coolify has not issued a certificate. Set the domain with an `https://` scheme so Let's Encrypt is requested |
-| `assessment disabled` in the logs | `ANTHROPIC_API_KEY` / `VOYAGE_API_KEY` missing at **runtime**. Safety paths still work |
+| Bot replies "symptom assessment is not available right now" | Check `/readyz` — it names the missing variable. Usually `ANTHROPIC_API_KEY` is unset at runtime |
 | Postgres will not start after a version change | PG18 expects the volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data` |
 | Registered mothers stop being recognised | `PHONE_HASH_PEPPER` changed. Identity is an HMAC keyed on it, so it must stay stable for the life of the deployment |

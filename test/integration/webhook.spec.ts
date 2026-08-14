@@ -471,6 +471,29 @@ describe('health endpoints', () => {
     expect(res.body.checks.database).toBe('ok');
   });
 
+  it('reports why assessment is unavailable without failing readiness', async () => {
+    // A mother is told "not available right now" whether the credentials are missing or
+    // the index failed to load. This is what makes the two distinguishable from outside
+    // the container, so the reason has to survive into the response body.
+    const app = createApp({
+      appSecret: APP_SECRET,
+      verifyToken: VERIFY_TOKEN,
+      events: new FakeEvents() as never,
+      audit: new FakeAudit() as never,
+      db: { healthy: async () => true } as never,
+      queue: new TaskQueue({ concurrency: 1, onError: () => undefined }),
+      logger: silentLogger,
+      handleMessage: async () => undefined,
+      assessmentStatus: () => 'disabled — not configured: ANTHROPIC_API_KEY',
+    });
+
+    const res = await request(app).get('/readyz');
+    // Still ready: the deterministic safety layer is what must not be taken offline.
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ready');
+    expect(res.body.checks.assessment).toBe('disabled — not configured: ANTHROPIC_API_KEY');
+  });
+
   it('reports 503 when the database is unreachable', async () => {
     const events = new FakeEvents();
     const app = createApp({

@@ -73,11 +73,16 @@ async function main(): Promise<void> {
 
   let assessment: Parameters<typeof createMessageHandler>[0]['assessment'];
   let knowledgeIndexSize: number | null = null;
+  let assessmentStatus = 'disabled';
   try {
     if (!indexPath || !config.rag || !config.llm) {
-      throw new Error(
-        'assessment credentials not configured (ANTHROPIC_API_KEY / VOYAGE_API_KEY)',
-      );
+      // Named individually: "credentials missing" is not actionable when there are two of
+      // them and the deployment is only missing one.
+      const missing = [
+        config.llm ? null : 'ANTHROPIC_API_KEY',
+        config.rag ? null : 'VOYAGE_API_KEY',
+      ].filter(Boolean);
+      throw new Error(`not configured: ${missing.join(', ')}`);
     }
     const store = MemoryVectorStore.fromFile(indexPath);
     knowledgeIndexSize = store.size();
@@ -104,13 +109,16 @@ async function main(): Promise<void> {
       },
     };
 
+    assessmentStatus = `ok (${store.size()} chunks, ${store.embeddingModel})`;
+
     logger.info(
       { chunks: store.size(), embeddingModel: store.embeddingModel, builtAt: store.builtAt },
       'knowledge index loaded',
     );
   } catch (err) {
+    assessmentStatus = `disabled — ${err instanceof Error ? err.message : String(err)}`;
     logger.warn(
-      { reason: err instanceof Error ? err.message : String(err), indexPath },
+      { reason: assessmentStatus, indexPath },
       'assessment disabled — deterministic safety layer, consent and pathway selection ' +
         'remain fully active',
     );
@@ -180,6 +188,7 @@ async function main(): Promise<void> {
     appSecret: config.whatsapp?.appSecret ?? '',
     verifyToken: config.whatsapp?.verifyToken ?? '',
     whatsappEnabled: Boolean(config.whatsapp),
+    assessmentStatus: () => assessmentStatus,
     ...(config.telegram && telegramClient && handleTelegram
       ? {
           telegram: {
