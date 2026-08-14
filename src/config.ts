@@ -66,6 +66,12 @@ const schema = z.object({
   LLM_TIMEOUT_MS: intString('LLM_TIMEOUT_MS').default('15000'),
   LLM_MAX_TOKENS: intString('LLM_MAX_TOKENS').default('1500'),
 
+  // Standby provider, tried only when the primary cannot answer. Optional: without it a
+  // primary outage means the static fallback, which is safe but helps a mother far less
+  // than an assessment does.
+  DEEPSEEK_API_KEY: z.string().optional(),
+  DEEPSEEK_MODEL: z.string().min(1).default('deepseek-chat'),
+
   // RAG
   // Optional for the same reason as ANTHROPIC_API_KEY — both are needed for assessment,
   // neither for the safety layer.
@@ -130,6 +136,11 @@ export interface Config {
     safetyModel: string;
     timeoutMs: number;
     maxTokens: number;
+  };
+  /** Standby provider, used only when the primary cannot answer. */
+  fallbackLlm?: {
+    apiKey: string;
+    model: string;
   };
   rag?: {
     voyageApiKey: string;
@@ -242,6 +253,9 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
             maxTokens: c.LLM_MAX_TOKENS,
           },
         }
+      : {}),
+    ...(c.DEEPSEEK_API_KEY
+      ? { fallbackLlm: { apiKey: c.DEEPSEEK_API_KEY, model: c.DEEPSEEK_MODEL } }
       : {}),
     ...(c.VOYAGE_API_KEY
       ? {

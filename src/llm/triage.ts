@@ -19,7 +19,8 @@ import { evaluateRedFlags } from '../safety/redFlags';
 import { ratchet } from '../safety/ratchet';
 import { renderContext, type RetrievalOutcome } from '../rag/retrieve';
 import type { Pathway, RedFlagHit, Slots, Urgency } from '../types';
-import { AnthropicClient, LlmError } from './anthropic';
+import { LlmError } from './anthropic';
+import type { ToolCallClient } from './client';
 import { TriageResult, triageToolSchema } from './schema';
 
 export type EscalationSource = 'rules' | 'safety_check' | 'low_confidence' | null;
@@ -57,7 +58,7 @@ export interface TriageRequest {
 }
 
 export interface TriageServiceOptions {
-  client: AnthropicClient;
+  client: ToolCallClient;
   model: string;
   maxTokens: number;
   promptVersion: string;
@@ -72,7 +73,7 @@ const TOOL_DESCRIPTION =
   'Record the structured triage assessment for this turn. This is the only way to respond.';
 
 export class TriageService {
-  private readonly client: AnthropicClient;
+  private readonly client: ToolCallClient;
   private readonly model: string;
   private readonly maxTokens: number;
   private readonly systemPrompt: string;
@@ -101,7 +102,7 @@ export class TriageService {
     const messages = this.buildMessages(req, context);
 
     let result: TriageResult | undefined;
-    let call: Awaited<ReturnType<AnthropicClient['callTool']>> | undefined;
+    let call: Awaited<ReturnType<ToolCallClient['callTool']>> | undefined;
     let lastProblem = '';
 
     // One retry: a schema or citation failure is often a one-off, but a second failure
@@ -213,7 +214,7 @@ export class TriageService {
   private decide(
     req: TriageRequest,
     result: TriageResult,
-    call: { inputTokens: number; outputTokens: number; latencyMs: number },
+    call: { inputTokens: number; outputTokens: number; latencyMs: number; model?: string },
   ): TriageDecision {
     const urgencyLlm = result.urgency as Urgency;
 
@@ -265,7 +266,10 @@ export class TriageService {
       redFlags: rules.hits,
       slots,
       citations: result.citations,
-      model: this.model,
+      // What answered, not what was configured. These differ when the standby provider
+      // served the request, and the outcome row has to say which model produced the
+      // decision or an evaluation cannot separate the two.
+      model: call.model || this.model,
       promptVersion: this.promptVersion,
       inputTokens: call.inputTokens,
       outputTokens: call.outputTokens,

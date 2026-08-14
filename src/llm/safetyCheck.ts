@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { isMoreUrgent } from '../safety/ratchet';
 import type { Urgency } from '../types';
-import type { AnthropicClient } from './anthropic';
+import type { ToolCallClient } from './client';
 import { SafetyVerdict, safetyToolSchema } from './schema';
 import { formatTranscript } from './triage';
 
@@ -37,7 +37,7 @@ export interface SafetyCheckResult {
 }
 
 export interface SafetyCheckOptions {
-  client: AnthropicClient;
+  client: ToolCallClient;
   model: string;
   systemPrompt?: string;
   promptPath?: string;
@@ -46,7 +46,7 @@ export interface SafetyCheckOptions {
 }
 
 export class SafetyCheckService {
-  private readonly client: AnthropicClient;
+  private readonly client: ToolCallClient;
   private readonly model: string;
   private readonly systemPrompt: string;
   private readonly maxTokens: number;

@@ -31,6 +31,9 @@ import { MemoryVectorStore } from './rag/store';
 import { VoyageEmbedder } from './rag/embed';
 import { Retriever } from './rag/retrieve';
 import { AnthropicClient } from './llm/anthropic';
+import type { ToolCallClient } from './llm/client';
+import { DeepSeekClient } from './llm/deepseek';
+import { FallbackLlmClient } from './llm/fallbackClient';
 import { TriageService } from './llm/triage';
 import { SafetyCheckService } from './llm/safetyCheck';
 import { join } from 'node:path';
@@ -91,10 +94,38 @@ async function main(): Promise<void> {
       apiKey: config.rag.voyageApiKey,
       model: config.rag.embeddingModel,
     });
-    const llm = new AnthropicClient({
+    const primary = new AnthropicClient({
       apiKey: config.llm.apiKey,
       timeoutMs: config.llm.timeoutMs,
     });
+
+    // The standby only wraps the primary when it is configured; otherwise the primary is
+    // used directly, so nothing about the default path changes.
+    const llm: ToolCallClient = config.fallbackLlm
+      ? new FallbackLlmClient({
+          primary,
+          standby: new DeepSeekClient({
+            apiKey: config.fallbackLlm.apiKey,
+            model: config.fallbackLlm.model,
+            timeoutMs: config.llm.timeoutMs,
+          }),
+          onFallback: ({ reason, error, recovered }) => {
+            // Audited every time. An evaluation has to be able to say how many decisions
+            // came from each model; a figure averaged over both describes neither.
+            void audit.record('LLM_FALLBACK_USED' as never, { reason, error, recovered });
+            logger.warn(
+              { reason, error, recovered, standby: config.fallbackLlm?.model },
+              recovered
+                ? 'primary LLM unavailable — answered by the standby provider'
+                : 'primary LLM unavailable and the standby also failed',
+            );
+          },
+        })
+      : primary;
+
+    if (config.fallbackLlm) {
+      logger.info({ standby: config.fallbackLlm.model }, 'standby LLM provider configured');
+    }
 
     assessment = {
       retriever: new Retriever(store, embedder, { topK: config.rag.topK }),

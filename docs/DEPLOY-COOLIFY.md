@@ -50,6 +50,7 @@ which is worse than a visible failure. To run that way deliberately, set
 |---|---|---|
 | `ANTHROPIC_API_KEY` | for assessment | Without it the safety layer still runs; assessment is disabled |
 | `VOYAGE_API_KEY` | yes | Embeds the corpus on first boot and every query thereafter |
+| `DEEPSEEK_API_KEY` | optional | Standby LLM for when Anthropic is unavailable. Sends message text to a second processor — see the privacy notice |
 | `EMBEDDING_MODEL` | optional | Defaults to `voyage-4-lite`, which carries a free token allowance. Changing it forces the index to rebuild |
 | `TELEGRAM_BOT_TOKEN` | one channel required | |
 | `TELEGRAM_BOT_USERNAME` | with Telegram | e.g. `Nne_m_BOT`, used to build the `t.me` link at registration |

@@ -46,6 +46,15 @@ export interface ToolCallResult {
   outputTokens: number;
   latencyMs: number;
   stopReason: string | null;
+  /**
+   * The model that actually answered.
+   *
+   * Reported rather than assumed, because a fallback provider may have served the
+   * request. Every outcome row records this, so an evaluation can always say which model
+   * produced a given decision — two models reported as one figure would not describe any
+   * system that exists.
+   */
+  model: string;
 }
 
 /** Minimal surface used from the SDK, so tests can supply a double. */
@@ -190,6 +199,7 @@ export class AnthropicClient {
           outputTokens: res.usage?.output_tokens ?? 0,
           latencyMs: Date.now() - started,
           stopReason: res.stop_reason ?? null,
+          model: req.model,
         };
       } catch (err) {
         lastError = err;
