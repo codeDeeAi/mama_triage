@@ -5,8 +5,10 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Must be a *build* variable in Coolify, not just a runtime one.
-        - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+        # No key at build time. Coolify passes `--build-arg VOYAGE_API_KEY` with nothing
+        # behind it, because the build-time flag is not settable on a compose-managed
+        # variable. The index is built on first boot instead — see BUILD_INDEX_ON_BOOT.
+        - ALLOW_NO_INDEX=true
     environment:
       - SERVICE_FQDN_APP_8080
       - NODE_ENV=production
@@ -14,6 +16,11 @@ services:
 
       - DATABASE_URL=postgres://mama:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/mama_triage
       - RUN_MIGRATIONS_ON_BOOT=true
+
+      # Embeds the corpus on first boot, then only when it or the model changes.
+      # Boot fails loudly rather than serving without an index.
+      - BUILD_INDEX_ON_BOOT=true
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-3}
 
       # Must stay stable for the life of the deployment: identity is an HMAC keyed on
       # this, so changing it makes every registered mother unrecognisable.
@@ -40,6 +47,9 @@ services:
 
       # An unauthenticated chat interface onto the triage engine. Leave off.
       - DEMO_ENABLED=${DEMO_ENABLED:-false}
+    volumes:
+      # Survives redeploys, so the corpus is embedded once rather than per deploy.
+      - knowledge-index:/app/knowledge/index
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,3 +85,4 @@ services:
 
 volumes:
   pg-data:
+  knowledge-index:

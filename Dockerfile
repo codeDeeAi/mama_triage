@@ -51,7 +51,9 @@ RUN --mount=type=secret,id=voyage_key \
       echo "looks healthy, which is worse than a build that fails here." >&2; \
       echo "" >&2; \
       echo "Supply VOYAGE_API_KEY as a build secret or build argument, or set" >&2; \
-      echo "ALLOW_NO_INDEX=true if you genuinely intend to deploy without assessment." >&2; \
+      echo "ALLOW_NO_INDEX=true and build the index on first boot instead" >&2; \
+      echo "(BUILD_INDEX_ON_BOOT=true) — which is what the Coolify compose file does," >&2; \
+      echo "because Coolify cannot supply a value to a compose-managed build arg." >&2; \
       exit 1; \
     fi
 
@@ -66,11 +68,18 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 COPY --from=index /app/knowledge/index ./knowledge/index
+# Needed at runtime as well as build time: BUILD_INDEX_ON_BOOT re-embeds from these.
+COPY knowledge/sources ./knowledge/sources
 COPY views ./views
 COPY prompts ./prompts
 COPY migrations ./migrations
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
+
+# knowledge/index must be writable by `node`, and must be owned by it *before* a named
+# volume is mounted there — a volume inherits the ownership of the image directory it
+# shadows, so chowning after the mount is too late.
+RUN mkdir -p knowledge/index && chown -R node:node /app/knowledge
 
 USER node
 

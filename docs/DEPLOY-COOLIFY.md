@@ -28,25 +28,30 @@ If you must use the external server instead, enable TLS on it first and append
 **1. New Resource → Docker Compose**, pointed at this repository, with the compose file
 set to `docker-compose.coolify.yml`.
 
-**2. Set the build variable.** Under *Build Variables* — not runtime environment
-variables, this one is needed while the image is being built:
+**2. Set the environment variables.** All of them are runtime variables — there is
+nothing to set under *Build Variables*.
 
-| Variable | Value |
-|---|---|
-| `VOYAGE_API_KEY` | your Voyage key |
+Coolify cannot put a value behind a build argument for a variable it manages from a
+compose file: it passes `--build-arg VOYAGE_API_KEY` with nothing behind it, and the
+"available at buildtime" flag is not settable on such a variable. So the image no longer
+needs the key at build time. It embeds the corpus on **first boot** instead, using the
+same key the app already needs for query embedding — which also keeps the key out of
+image history entirely.
 
-The build **fails deliberately** without it. An image with no knowledge index starts up,
-passes its health check, and answers every mother using only the red-flag rules — a
-degraded service that looks healthy. A failed build is the better outcome, so it is not
-silently allowed. If you genuinely want that (a smoke test, say), set `ALLOW_NO_INDEX=true`
-as a build variable too.
+The index lives on the `knowledge-index` volume, so this happens once per volume rather
+than once per deploy. It is rebuilt only when the corpus files or `EMBEDDING_MODEL`
+actually change, checked by comparing the SHA-256 of each source file against the index.
 
-**3. Set the runtime environment variables.**
+If the index is missing or stale and no key is set, **the container refuses to start**.
+Starting would answer every mother from the red-flag paths alone while reporting healthy,
+which is worse than a visible failure. To run that way deliberately, set
+`BUILD_INDEX_ON_BOOT=false`.
 
 | Variable | Required | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | for assessment | Without it the safety layer still runs; assessment is disabled |
-| `VOYAGE_API_KEY` | for assessment | Needed at runtime as well as build time |
+| `VOYAGE_API_KEY` | yes | Embeds the corpus on first boot and every query thereafter |
+| `EMBEDDING_MODEL` | optional | Defaults to `voyage-3`, which is **excluded from Voyage's free tier**. `voyage-4-lite` is free and faster |
 | `TELEGRAM_BOT_TOKEN` | one channel required | |
 | `TELEGRAM_BOT_USERNAME` | with Telegram | e.g. `Nne_m_BOT`, used to build the `t.me` link at registration |
 | `WHATSAPP_TOKEN` … | optional | All four WhatsApp variables or none — see below |
@@ -63,9 +68,9 @@ Configuration refuses to start on a partial group, because a channel that boots 
 fails on the first real message is worse than one that never boots. `WHATSAPP_APP_SECRET`
 is what authenticates the webhook; without it anyone can post to it.
 
-**4. Assign a domain** in Coolify. TLS is handled for you.
+**3. Assign a domain** in Coolify. TLS is handled for you.
 
-**5. Deploy.**
+**4. Deploy.**
 
 ---
 
@@ -76,6 +81,8 @@ is what authenticates the webhook; without it anyone can post to it.
 ==> Running migrations...
 > Migrating files: 001_sessions … 010_sms_optin
 ==> Migrations complete.
+==> Building the knowledge index (corpus or model changed)...
+==> Knowledge index built.
 {"msg":"messaging channels ready","channels":["telegram"]}
 {"msg":"listening","port":8080}
 ```
@@ -140,7 +147,8 @@ Neither blocks a test deployment. Both must be done before a real participant us
 
 | Symptom | Cause |
 |---|---|
-| Build fails with `FATAL: no Voyage API key` | Working as intended. Set `VOYAGE_API_KEY` as a **build** variable, not just a runtime one |
+| `FATAL: ... VOYAGE_API_KEY is not set` at boot | Set `VOYAGE_API_KEY` as a runtime environment variable. It is not a build variable |
+| Corpus re-embeds on every deploy | The `knowledge-index` volume is not persisting, or `EMBEDDING_MODEL` is changing between deploys |
 | `FATAL: database unreachable after 60s` | Check `DATABASE_URL`. Note that `database "x" does not exist` is *not* a credentials error — the database has to be created first |
 | Container healthy, but replies never arrive | The Telegram webhook is not set, or is pointing at an old domain. Check `getWebhookInfo` |
 | `assessment disabled` in the logs | `ANTHROPIC_API_KEY` / `VOYAGE_API_KEY` missing at **runtime**. Safety paths still work |
