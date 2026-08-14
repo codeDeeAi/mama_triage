@@ -15,9 +15,7 @@ services:
     ports:
       - '5433:5432'
     volumes:
-      # PostgreSQL 18's image expects the mount at /var/lib/postgresql and places the
-      # data directory in a version-numbered subdirectory beneath it. Mounting the old
-      # /var/lib/postgresql/data path makes it refuse to start.
+      # PG18 wants the mount here, not at /var/lib/postgresql/data.
       - pgdata:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mama -d mama_triage']

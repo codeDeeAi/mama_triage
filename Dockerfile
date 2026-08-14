@@ -1,12 +1,4 @@
 # mama-triage — production image.
-#
-# Targets any platform that builds a Dockerfile and runs the result: Cloud Run (what
-# Chapter 3 specifies), Coolify, Railway, Render, plain Docker.
-#
-# The knowledge index is built during the image build and shipped read-only inside the
-# image. That is what pins an evaluation run to an image digest: the exact knowledge base
-# that produced a set of results is identified by the digest, not by whatever happened to
-# be in a vector database that afternoon.
 
 # ---- dependencies -----------------------------------------------------------
 FROM node:20-slim AS deps
@@ -22,27 +14,19 @@ COPY package.json package-lock.json tsconfig.json tsconfig.build.json tailwind.c
 COPY src ./src
 COPY views ./views
 COPY public ./public
-# Builds the CSS as well as the TypeScript: Tailwind output is generated at image build
-# time and served from the same origin, not fetched from a CDN at runtime.
 RUN npm run build
 
 # ---- knowledge index --------------------------------------------------------
-# Needs a Voyage API key at build time. Two ways to supply it:
+# Built into the image so an evaluation run is pinned to an image digest rather than to
+# whatever was in a vector database that afternoon.
 #
-#   BuildKit secret (preferred — never enters an image layer):
-#     docker build --secret id=voyage_key,env=VOYAGE_API_KEY .
-#
-#   Build argument (for platforms whose UI has no secret support, Coolify included):
-#     set VOYAGE_API_KEY as a *build* variable
-#
-# The build argument is the weaker option: build args are recorded in image history, so
-# anyone who can pull the image can read the key. Acceptable for a private image and a
-# scoped key that you can rotate; not something to do with a shared credential.
+# Supply the key either way:
+#   docker build --secret id=voyage_key,env=VOYAGE_API_KEY .   (preferred)
+#   docker build --build-arg VOYAGE_API_KEY=...                (build args are recorded
+#                                                               in image history)
 FROM node:20-slim AS index
 WORKDIR /app
 ARG VOYAGE_API_KEY=""
-# Escape hatch for a deliberate build with no index — CI smoke tests, or a deployment
-# that only exercises the safety paths. Must be set explicitly.
 ARG ALLOW_NO_INDEX="false"
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
@@ -76,7 +60,6 @@ FROM node:20-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Production dependencies only.
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
@@ -89,16 +72,11 @@ COPY migrations ./migrations
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-# Never run as root.
 USER node
 
-# Liveness for the deploying platform. /healthz deliberately does not touch the database,
-# so this answers "is the process up", not "is everything working" — a database blip
-# should not make the platform kill and restart a healthy container. Readiness, which does
-# check the database, is at /readyz.
-#
-# Uses node rather than curl because the slim image has no curl, and adding one to run a
-# health check is a package worth of attack surface for a request node can make itself.
+# /healthz deliberately ignores the database, so a database blip does not get a healthy
+# container killed and restarted. /readyz is the one that checks dependencies.
+# Uses node because the slim image has no curl.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

@@ -1,18 +1,9 @@
 #!/bin/sh
-# Container entrypoint.
+# Runs migrations before starting, when RUN_MIGRATIONS_ON_BOOT=true.
 #
-# Exists for one reason: platforms like Coolify, Railway and Render deploy an image and
-# start it. There is no natural place to run database migrations in between. Without this,
-# every deploy that changes the schema needs a human to open a terminal and remember.
-#
-# Migrations are opt-in (RUN_MIGRATIONS_ON_BOOT=true) rather than automatic, because
-# running them on boot is a real trade-off: it is convenient on a single-instance
-# deployment and dangerous on a large one, where a long migration blocks every replica's
-# startup at once. Small deployment, turn it on. Serious one, run them from CI.
-#
-# Concurrency is safe either way. node-pg-migrate takes a Postgres advisory lock before it
-# does anything, so if several replicas boot together, one migrates and the rest wait and
-# then find nothing to do.
+# Opt-in rather than automatic: convenient on a single instance, but on many replicas a
+# long migration blocks every startup at once. Safe either way — node-pg-migrate takes a
+# Postgres advisory lock, so concurrent boots serialise.
 
 set -e
 
@@ -23,9 +14,6 @@ if [ "$RUN_MIGRATIONS_ON_BOOT" = "true" ]; then
   fi
 
   echo "==> Waiting for the database to accept connections..."
-  # Up to ~60s. A database that is still starting is normal on a fresh deploy; one that
-  # never arrives is a configuration error, and we want that to be a loud failure rather
-  # than a container that restarts forever with an unhelpful message.
   i=0
   until node -e "
     const { Client } = require('pg');
