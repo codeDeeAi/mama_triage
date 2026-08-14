@@ -25,6 +25,7 @@ import type { OutcomeRepository } from '../db/repositories/outcome.repo';
 import type { RegistrationRepository } from '../db/repositories/registration.repo';
 import type { FollowUpRepository } from '../db/repositories/followup.repo';
 import { dueAt, planFollowUp } from './followUp';
+import { nextDomain } from './pathways';
 import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
 import { buildEmergencyMessage } from './render';
@@ -502,13 +503,27 @@ async function handlePathwayChoice(
   await deps.sessions.setPathway(session.id, chosen);
   await deps.sessions.setState(session.id, 'assessing');
 
-  await reply(
+  const acknowledgement =
     chosen === 'neonatal'
       ? session.language === 'en'
         ? 'Thank you. I will ask a few questions about your baby.'
         : 'Thank you. I go ask small questions about your pikin.'
       : session.language === 'en'
         ? 'Thank you. I will ask a few questions about how you are feeling.'
-        : 'Thank you. I go ask small questions about how you dey feel.',
+        : 'Thank you. I go ask small questions about how you dey feel.';
+
+  // Ask the opening question in the same turn.
+  //
+  // Without it the acknowledgement promises questions and then sends none, leaving the
+  // mother with nothing to answer and no way to tell whether to wait or to type. That is
+  // the worst moment to be ambiguous, because the entire assessment is still ahead of her.
+  //
+  // Scripted on purpose, and the one place that is right. No symptom has been described
+  // yet, so there is nothing for the model to adapt to — and asking it in code means the
+  // conversation still starts when the model is unavailable. Every later question is
+  // still the model's, phrased around what she actually said.
+  const first = nextDomain(chosen, {});
+  await reply(
+    first ? `${acknowledgement}\n\n${first.fallbackQuestion[session.language]}` : acknowledgement,
   );
 }

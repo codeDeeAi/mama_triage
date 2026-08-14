@@ -74,6 +74,7 @@ async function main(): Promise<void> {
   let assessment: Parameters<typeof createMessageHandler>[0]['assessment'];
   let knowledgeIndexSize: number | null = null;
   let assessmentStatus = 'disabled';
+  let lastAssessmentFailure: { at: Date; reason: string; error: string } | null = null;
   try {
     if (!indexPath || !config.rag || !config.llm) {
       // Named individually: "credentials missing" is not actionable when there are two of
@@ -105,6 +106,19 @@ async function main(): Promise<void> {
       }),
       safetyCheck: new SafetyCheckService({ client: llm, model: config.llm.safetyModel }),
       onAudit: (event, detail) => {
+        // Assessment can be fully configured and still fail on every call — an expired
+        // key, an exhausted credit balance, a model the account cannot reach. The mother
+        // gets the correct fallback either way, so from outside the container that is
+        // indistinguishable from working. Keeping the last failure makes it visible on
+        // /readyz without a probe request on every health check.
+        if (event === 'LLM_FAILOVER' || event === 'RETRIEVAL_FAILED') {
+          const d = detail as { reason?: string; error?: string };
+          lastAssessmentFailure = {
+            at: new Date(),
+            reason: d.reason ?? event,
+            error: (d.error ?? '').slice(0, 160),
+          };
+        }
         void audit.record(event as never, detail);
       },
     };
@@ -188,7 +202,14 @@ async function main(): Promise<void> {
     appSecret: config.whatsapp?.appSecret ?? '',
     verifyToken: config.whatsapp?.verifyToken ?? '',
     whatsappEnabled: Boolean(config.whatsapp),
-    assessmentStatus: () => assessmentStatus,
+    assessmentStatus: () => {
+      if (!lastAssessmentFailure) return assessmentStatus;
+      const { at, reason, error } = lastAssessmentFailure;
+      const minutesAgo = Math.round((Date.now() - at.getTime()) / 60000);
+      return `${assessmentStatus}; last failure ${minutesAgo}m ago: ${reason}${
+        error ? ` — ${error}` : ''
+      }`;
+    },
     ...(config.telegram && telegramClient && handleTelegram
       ? {
           telegram: {

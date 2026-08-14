@@ -202,6 +202,28 @@ describe('pathway routing', () => {
     await c.send('for me');
     expect((await currentSession(c))?.pathway).toBe('maternal');
   });
+
+  maybe('asks the first question in the same turn as the acknowledgement', async () => {
+    // The acknowledgement promises questions. Sending it alone leaves the mother with
+    // nothing to answer and no way to tell whether to wait or to type. It must also not
+    // depend on the model being reachable, which is why it is asked in code — these
+    // tests run with no assessment configured at all.
+    const c = ctx();
+    await c.send('hello');
+    await c.send('yes');
+    await c.send('for me');
+
+    expect(c.wa.allBodies).toMatch(/I will ask a few questions/i);
+    expect(c.wa.allBodies).toMatch(/how much are you bleeding/i);
+  });
+
+  maybe('asks the neonatal opening question too', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('yes');
+    await c.send('for my baby');
+    expect(c.wa.allBodies).toMatch(/feeding normally/i);
+  });
 });
 
 describe('safety escalation — before consent', () => {
