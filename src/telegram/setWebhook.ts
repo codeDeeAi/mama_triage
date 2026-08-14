@@ -47,7 +47,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const url = `${origin}/webhook/telegram`;
+  // Not /webhook/telegram. `/webhook` is the WhatsApp route, and its signature
+  // middleware matches the whole subtree — so the wrong way round returns 401 rather
+  // than 404, and Telegram would register happily and then be silently unreachable.
+  const url = `${origin}/telegram/webhook`;
 
   // Verify the deployment first. `/healthz` deliberately does not touch the database, so
   // a 200 here means the process is up; it is the weakest useful check and the right one
