@@ -94,9 +94,22 @@ export class DeepSeekClient implements ToolCallClient {
 
       if (!res.ok) {
         const detail = await res.text().catch(() => '');
+        // 401/402/403 are the provider declining to serve — a revoked key, an unpaid
+        // balance, a blocked account. They say nothing about the request, so they belong
+        // with timeouts and 5xx rather than with a malformed body. Getting this wrong
+        // matters when this client is the primary: `invalid_output` does not fall through
+        // to a standby, so an unpaid balance would strand every assessment instead of
+        // being covered by the other provider. Only 400 and 422 mean the request itself.
+        const declined =
+          res.status === 401 ||
+          res.status === 402 ||
+          res.status === 403 ||
+          res.status === 429 ||
+          res.status >= 500;
         throw new LlmError(
           `DeepSeek request failed (${res.status}): ${detail.slice(0, 200)}`,
-          res.status === 429 || res.status >= 500 ? 'api_error' : 'invalid_output',
+          declined ? 'api_error' : 'invalid_output',
+          // Retrying the same request helps for rate limits and server errors only.
           res.status === 429 || res.status >= 500,
         );
       }

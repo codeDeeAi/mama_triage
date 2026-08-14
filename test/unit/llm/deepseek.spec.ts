@@ -93,6 +93,21 @@ describe('DeepSeekClient — failures', () => {
     });
   });
 
+  it.each([401, 402, 403])(
+    'classifies %d as the provider declining, not as a bad request',
+    async (status) => {
+      // An unpaid balance returns 402. Calling that `invalid_output` would stop it
+      // falling through to a standby, stranding every assessment on a billing problem
+      // the other provider could have covered.
+      const f = fakeFetch({ status, body: { error: { message: 'Insufficient Balance' } } });
+      await expect(client(f.impl).callTool(REQ)).rejects.toMatchObject({
+        kind: 'api_error',
+        // Retrying the identical request will not pay the bill.
+        retryable: false,
+      });
+    },
+  );
+
   it('rejects a response with no tool call — there is nothing to validate', async () => {
     const f = fakeFetch({
       status: 200,
