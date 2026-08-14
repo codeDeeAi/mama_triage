@@ -50,7 +50,7 @@ which is worse than a visible failure. To run that way deliberately, set
 |---|---|---|
 | `ANTHROPIC_API_KEY` | for assessment | Without it the safety layer still runs; assessment is disabled |
 | `VOYAGE_API_KEY` | yes | Embeds the corpus on first boot and every query thereafter |
-| `EMBEDDING_MODEL` | optional | Defaults to `voyage-3`, which is **excluded from Voyage's free tier**. `voyage-4-lite` is free and faster |
+| `EMBEDDING_MODEL` | optional | Defaults to `voyage-4-lite`, which carries a free token allowance. Changing it forces the index to rebuild |
 | `TELEGRAM_BOT_TOKEN` | one channel required | |
 | `TELEGRAM_BOT_USERNAME` | with Telegram | e.g. `Nne_m_BOT`, used to build the `t.me` link at registration |
 | `WHATSAPP_TOKEN` … | optional | All four WhatsApp variables or none — see below |
@@ -136,7 +136,7 @@ curl https://<domain>/readyz    # database and assessment status
 right now" whether the credentials are missing or the index failed to load:
 
 ```json
-{"status":"ready","checks":{"database":"ok","assessment":"ok (312 chunks, voyage-3)"}}
+{"status":"ready","checks":{"database":"ok","assessment":"ok (215 chunks, voyage-4-lite)"}}
 {"status":"ready","checks":{"database":"ok","assessment":"disabled — not configured: ANTHROPIC_API_KEY"}}
 ```
 
@@ -171,8 +171,8 @@ ingestion under that cap takes a long time and may not finish at all.
 
 Adding a payment method lifts the cap. It does not mean paying: `voyage-4-lite`,
 `voyage-4` and `voyage-4-large` include 200M free tokens, and this corpus uses a fraction
-of that. The default `voyage-3` is a previous-generation model and is **excluded** from
-the free allowance, so `EMBEDDING_MODEL=voyage-4-lite` is both free and faster.
+of that. `voyage-4-lite` is the default here for exactly that reason — the previous
+generation (`voyage-3`) is excluded from the free allowance.
 
 Ingestion is tuned for the constrained case regardless — 16 chunks per batch, eight
 retries, and it honours the `Retry-After` header rather than its own backoff. Override

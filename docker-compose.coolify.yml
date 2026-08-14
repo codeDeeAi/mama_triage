@@ -18,7 +18,7 @@ services:
       # Embeds the corpus on first boot, then only when it or the model changes.
       # Boot fails loudly rather than serving without an index.
       - BUILD_INDEX_ON_BOOT=true
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-3}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-4-lite}
 
       # Must stay stable for the life of the deployment: identity is an HMAC keyed on
       # this, so changing it makes every registered mother unrecognisable.

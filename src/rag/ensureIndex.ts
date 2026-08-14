@@ -80,7 +80,7 @@ async function main(): Promise<void> {
   const config = getConfig();
   const corpusDir = process.env.CORPUS_DIR ?? 'knowledge/sources';
   const chromaPath = config.rag?.chromaPath ?? process.env.CHROMA_PATH ?? './knowledge/index';
-  const embeddingModel = config.rag?.embeddingModel ?? process.env.EMBEDDING_MODEL ?? 'voyage-3';
+  const embeddingModel = config.rag?.embeddingModel ?? process.env.EMBEDDING_MODEL ?? 'voyage-4-lite';
   const indexPath = resolveIndexPath(chromaPath);
 
   if (indexIsCurrent(indexPath, corpusDir, embeddingModel)) {

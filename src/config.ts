@@ -70,7 +70,11 @@ const schema = z.object({
   // Optional for the same reason as ANTHROPIC_API_KEY — both are needed for assessment,
   // neither for the safety layer.
   VOYAGE_API_KEY: z.string().optional(),
-  EMBEDDING_MODEL: z.string().min(1).default('voyage-3'),
+  // voyage-4-lite rather than voyage-3: the 4-series carries a free token allowance that
+  // the previous generation is excluded from, and is faster with a longer context window.
+  // The model name is recorded in the index and a mismatch forces a rebuild — vectors
+  // from two different models are not comparable, so this cannot be changed in place.
+  EMBEDDING_MODEL: z.string().min(1).default('voyage-4-lite'),
   CHROMA_PATH: z.string().min(1).default('./knowledge/index'),
   RETRIEVAL_TOP_K: intString('RETRIEVAL_TOP_K').default('5'),
 
