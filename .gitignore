@@ -29,4 +29,10 @@ eval/out/
 *.swp
 
 IMPLEMENTATION_PLAN.md
-docs/
+
+# Documentation is tracked.
+#
+# `docs/` was ignored wholesale at one point and the files that matter were force-added
+# past it. That combination is a trap: every *new* doc is silently dropped from commits
+# with no error, which is exactly how docs/DEPLOY-COOLIFY.md went missing from the commit
+# that introduced it. Ignore only what is genuinely generated.
