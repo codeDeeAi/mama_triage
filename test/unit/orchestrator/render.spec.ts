@@ -46,11 +46,52 @@ function decision(overrides: {
 }
 
 describe('renderDecision — asking a question', () => {
-  it('sends just the question', () => {
+  it('sends the question alone when the domain has no demonstration', () => {
     const out = renderDecision(
-      decision({ action: { type: 'ask', domain: 'breathing', question: 'How is the baby breathing?' } }),
+      decision({ action: { type: 'ask', domain: 'jaundice', question: 'Is the baby yellow?' } }),
     );
-    expect(out).toEqual(['How is the baby breathing?']);
+    expect(out).toEqual(['Is the baby yellow?']);
+  });
+
+  it('sends one message, with no banner and no disclaimer', () => {
+    // A question is not a conclusion: none of the conclusion furniture belongs on it.
+    const out = renderDecision(
+      decision({
+        action: { type: 'ask', domain: 'breathing', question: 'How is the baby breathing?' },
+      }),
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toContain('How is the baby breathing?');
+    expect(out[0]).not.toMatch(/CARE AT HOME|SEE A HEALTH WORKER|EMERGENCY/);
+    expect(out[0]).not.toMatch(/not a diagnosis/i);
+  });
+
+  it('offers the demonstration after the question, for a domain that has one', () => {
+    // Chest indrawing cannot be described to someone who has never been shown one, and
+    // her answer is what the slot — and so the triage decision — rests on.
+    const out = renderDecision(
+      decision({
+        action: { type: 'ask', domain: 'breathing', question: 'How is the baby breathing?' },
+      }),
+    )[0]!;
+
+    expect(out.indexOf('How is the baby breathing?')).toBeLessThan(
+      out.indexOf('globalhealthmedia.org'),
+    );
+    expect(out).toMatch(/data/i);
+  });
+
+  it('never offers a demonstration on an emergency', () => {
+    // The only acceptable message there is "go now". Anything competing with it is harm.
+    const out = renderDecision(
+      decision({
+        urgency: 'emergency',
+        action: { type: 'ask', domain: 'breathing', question: 'How is the baby breathing?' },
+      }),
+    )[0]!;
+
+    expect(out).toContain('EMERGENCY');
+    expect(out).not.toContain('globalhealthmedia.org');
   });
 });
 

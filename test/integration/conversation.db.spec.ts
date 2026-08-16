@@ -218,7 +218,10 @@ describe('full conversation', () => {
     expect((await c.session())?.state).toBe('assessing');
 
     await c.send('he is feeding normally');
-    expect(c.wa.last).toBe('How is the baby breathing?');
+    expect(c.wa.last).toContain('How is the baby breathing?');
+    // The breathing domain carries an optional demonstration — chest indrawing is the
+    // sign a mother is least able to judge from a description alone.
+    expect(c.wa.last).toContain('globalhealthmedia.org');
     expect((await c.session())?.state).toBe('assessing');
 
     await c.send('breathing is normal');

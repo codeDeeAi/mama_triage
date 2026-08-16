@@ -16,6 +16,7 @@
  */
 
 import { disclaimer, referralDirective } from '../safety/fallback';
+import { demonstrationOffer } from './demonstrations';
 import type { Language, Urgency } from '../types';
 import type { TriageDecision } from '../llm/triage';
 
@@ -64,7 +65,15 @@ export function renderDecision(decision: TriageDecision): string[] {
   }
 
   if (action.type === 'ask') {
-    return [action.question];
+    // A demonstration is offered only here, on a question, and only after the emergency
+    // branch above has had its chance to return. Some signs — chest indrawing above all —
+    // cannot be described to someone who has never been shown one, and the accuracy of
+    // her answer is what the slot, and therefore the triage decision, rests on.
+    //
+    // The link comes from a static register keyed by the domain the model named. The
+    // model cannot supply a URL, so it cannot invent one.
+    const offer = demonstrationOffer(action.domain, language);
+    return offer ? [`${action.question}\n\n${offer}`] : [action.question];
   }
 
   const lines: string[] = [];

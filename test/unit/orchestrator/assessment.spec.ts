@@ -130,7 +130,10 @@ describe('runAssessmentTurn — happy path', () => {
       input(),
     );
     expect(out.state).toBe('assessing');
-    expect(out.messages).toEqual(['How is the breathing?']);
+    // One message carrying the question. The breathing domain also attaches an optional
+    // demonstration link, which is asserted in demonstrations.spec.ts.
+    expect(out.messages).toHaveLength(1);
+    expect(out.messages[0]).toContain('How is the breathing?');
   });
 
   it('escalates and ends on an emergency', async () => {
