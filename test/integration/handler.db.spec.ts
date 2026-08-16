@@ -62,10 +62,18 @@ const silentLogger = {
   error: () => undefined, debug: () => undefined,
 } as never;
 
+interface SendOpts {
+  replyId?: string;
+  kind?: InboundMessage['kind'];
+  /** Set by the Telegram parser for `/start`, with or without a deep-link payload. */
+  isStartCommand?: boolean;
+}
+
 interface Ctx {
-  send: (text: string, opts?: { replyId?: string; kind?: InboundMessage['kind'] }) => Promise<void>;
+  send: (text: string, opts?: SendOpts) => Promise<void>;
   wa: FakeWhatsApp;
   sessions: SessionRepository;
+  messages: MessageRepository;
   audit: AuditRepository;
   phone: string;
   waIdHash: string;
@@ -92,10 +100,7 @@ function ctx(): Ctx {
   });
 
   let n = 0;
-  const send = async (
-    text: string,
-    opts: { replyId?: string; kind?: InboundMessage['kind'] } = {},
-  ): Promise<void> => {
+  const send = async (text: string, opts: SendOpts = {}): Promise<void> => {
     n += 1;
     await handle({
       channel: 'whatsapp',
@@ -106,10 +111,14 @@ function ctx(): Ctx {
       timestamp: Math.floor(Date.now() / 1000),
       phoneNumberId: 'PNID',
       ...(opts.replyId ? { replyId: opts.replyId } : {}),
-    });
+      ...(opts.isStartCommand ? { isStartCommand: true } : {}),
+    } as InboundMessage);
   };
 
-  return { send, wa, sessions, audit, phone, waIdHash: hashIdentity('whatsapp', phone, PEPPER) };
+  return {
+    send, wa, sessions, messages, audit, phone,
+    waIdHash: hashIdentity('whatsapp', phone, PEPPER),
+  };
 }
 
 async function currentSession(c: Ctx) {
@@ -432,5 +441,138 @@ describe('language switching mid-conversation', () => {
       [c.waIdHash],
     );
     expect(row?.language).toBe('pcm');
+  });
+});
+
+describe('bot commands', () => {
+  maybe('/help answers before consent, without opening a session transcript', async () => {
+    // A mother deciding whether to consent must be able to read what this thing is. The
+    // help text is not part of the clinical conversation, so it stays out of the
+    // transcript the model reasons over and the research exports.
+    const c = ctx();
+    await c.send('/help');
+
+    expect(c.wa.texts[0]?.body).toMatch(/research prototype/i);
+    expect(c.wa.texts[0]?.body).toContain('/danger');
+
+    const session = await currentSession(c);
+    expect(await c.messages.countForSession(session!.id)).toBe(0);
+  });
+
+  maybe('/commands lists the commands', async () => {
+    const c = ctx();
+    await c.send('/commands');
+    for (const name of ['start', 'help', 'danger', 'restart', 'privacy', 'stop']) {
+      expect(c.wa.texts[0]?.body).toContain(`/${name}`);
+    }
+  });
+
+  maybe('/privacy answers before consent', async () => {
+    const c = ctx();
+    await c.send('/privacy');
+    expect(c.wa.texts[0]?.body).toMatch(/never saved/i);
+  });
+
+  maybe('/danger shows both lists before a pathway is chosen', async () => {
+    const c = ctx();
+    await c.send('/danger');
+    expect(c.wa.texts[0]?.body).toMatch(/soaking more than one pad/i);
+    expect(c.wa.texts[0]?.body).toMatch(/unable to suck at the breast/i);
+  });
+
+  maybe('/danger narrows to the chosen pathway once one is set', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('Yes, continue', { replyId: CONSENT_ACCEPT_ID });
+    await c.send('For my baby', { replyId: PATHWAY_BABY_ID });
+    await c.send('/danger');
+
+    const last = c.wa.texts[c.wa.texts.length - 1]?.body ?? '';
+    expect(last).toMatch(/unable to suck at the breast/i);
+    expect(last).not.toMatch(/soaking more than one pad/i);
+  });
+
+  maybe('answers commands in Pidgin once the session is in Pidgin', async () => {
+    const c = ctx();
+    await c.send('abeg my belle dey pain me small');
+    await c.send('/help');
+
+    const last = c.wa.texts[c.wa.texts.length - 1]?.body ?? '';
+    expect(last).toMatch(/no be doctor/i);
+  });
+
+  maybe('/stop ends the check and points to a facility', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('Yes, continue', { replyId: CONSENT_ACCEPT_ID });
+    const before = await currentSession(c);
+    await c.send('/stop');
+
+    expect(c.wa.texts[c.wa.texts.length - 1]?.body).toMatch(/health facility/i);
+    // Abandoned is terminal, so there is no active session left.
+    expect(await currentSession(c)).toBeNull();
+
+    const events = await c.audit.listForSession(before!.id);
+    expect(events.map((e) => e.event)).toContain('SESSION_ABANDONED');
+    expect(events.map((e) => e.event)).toContain('COMMAND_USED');
+  });
+
+  maybe('/restart closes the old check and opens a new one asking consent again', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('Yes, continue', { replyId: CONSENT_ACCEPT_ID });
+    const old = await currentSession(c);
+    await c.send('/restart');
+
+    const fresh = await currentSession(c);
+    expect(fresh).not.toBeNull();
+    expect(fresh!.id).not.toBe(old!.id);
+    // Consent is recorded per session: a restarted check must ask again rather than
+    // inherit an agreement given to a check that is now closed.
+    expect(fresh!.consent_at).toBeNull();
+    expect(fresh!.state).toBe('awaiting_consent');
+    expect(c.wa.buttons[c.wa.buttons.length - 1]?.ids).toEqual([
+      'CONSENT_ACCEPT',
+      'CONSENT_DECLINE',
+    ]);
+
+    const oldRow = await c.sessions.findById(old!.id);
+    expect(oldRow?.state).toBe('abandoned');
+  });
+
+  maybe('a command-shaped sentence is still treated as symptom text', async () => {
+    // The single most important property of the parser. "/stop the bleeding..." describes
+    // a haemorrhage; matching it as a command would discard it before the safety scan.
+    const c = ctx();
+    await c.send('hello');
+    await c.send('Yes, continue', { replyId: CONSENT_ACCEPT_ID });
+    await c.send('/stop the bleeding is soaking a pad every hour');
+
+    expect(c.wa.allBodies).toMatch(/EMERGENCY/);
+    const session = await c.sessions.findLatest(c.waIdHash);
+    expect(session?.state).toBe('escalated');
+  });
+
+  maybe('/start greets a new session with consent, not the welcome text', async () => {
+    const c = ctx();
+    await c.send('hello', { isStartCommand: true });
+
+    // The consent gate must open on the opening gesture; showing help instead would
+    // leave a first-time mother one step further from being assessed.
+    expect(c.wa.buttons).toHaveLength(1);
+    expect((await currentSession(c))?.state).toBe('awaiting_consent');
+  });
+
+  maybe('/start shows the welcome text once a session is under way', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('Yes, continue', { replyId: CONSENT_ACCEPT_ID });
+    await c.send('hello', { isStartCommand: true });
+
+    const last = c.wa.texts[c.wa.texts.length - 1]?.body ?? '';
+    expect(last).toMatch(/research prototype/i);
+    expect(last).toContain('/danger');
+    // And it does not disturb where she had got to.
+    expect((await currentSession(c))?.state).toBe('choosing_pathway');
   });
 });

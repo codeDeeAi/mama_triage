@@ -51,6 +51,14 @@ export interface ParsedUpdate extends InboundMessage {
   callbackQueryId?: string;
   /** Payload from a `/start <payload>` deep link, used to link a registration. */
   startPayload?: string;
+  /**
+   * True when the message was `/start`, with or without a payload.
+   *
+   * The text is rewritten to a greeting below, which loses the distinction — and the
+   * handler needs it: `/start` from a mother who is already mid-assessment should show
+   * her what the bot can do, not be answered as though she had typed "hello".
+   */
+  isStartCommand?: boolean;
   /** Telegram's own language hint, e.g. "en", "en-GB". A weak signal, but free. */
   clientLanguage?: string;
 }
@@ -120,6 +128,7 @@ export function parseUpdate(payload: unknown): ParsedUpdate | null {
     kind: 'text',
     timestamp: m.date ?? Math.floor(Date.now() / 1000),
     phoneNumberId: 'telegram',
+    ...(startMatch ? { isStartCommand: true } : {}),
     ...(startPayload ? { startPayload } : {}),
     ...(m.from?.language_code ? { clientLanguage: m.from.language_code } : {}),
   };

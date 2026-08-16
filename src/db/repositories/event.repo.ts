@@ -80,6 +80,7 @@ export type AuditEvent =
   | 'RATCHET_BLOCKED_DOWNGRADE'
   | 'SAFETY_CHECK_ESCALATED'
   | 'SESSION_ABANDONED'
+  | 'COMMAND_USED'
   | 'WEBHOOK_REJECTED';
 
 export class AuditRepository {

@@ -7,6 +7,7 @@ import {
   MAX_CALLBACK_DATA,
 } from '../../../src/telegram/client';
 import { TelegramTransport } from '../../../src/telegram/transport';
+import { BOT_COMMANDS } from '../../../src/orchestrator/commands';
 
 describe('parseUpdate — text messages', () => {
   it('parses a plain message', () => {
@@ -40,6 +41,28 @@ describe('parseUpdate — text messages', () => {
     });
     expect(m?.text).toBe('hello');
     expect(m?.startPayload).toBeUndefined();
+    // The rewrite loses the fact that it was /start, so the flag carries it: a mother
+    // already mid-assessment should get the welcome text, not another symptom question.
+    expect(m?.isStartCommand).toBe(true);
+  });
+
+  it('does not flag ordinary text as /start', () => {
+    const m = parseUpdate({
+      update_id: 9,
+      message: { message_id: 9, chat: { id: 5 }, text: 'start the check' },
+    });
+    expect(m?.isStartCommand).toBeUndefined();
+    expect(m?.text).toBe('start the check');
+  });
+
+  it('leaves other commands as text for the handler to parse', () => {
+    // parseUpdate only special-cases /start, because only /start carries a deep link.
+    const m = parseUpdate({
+      update_id: 10,
+      message: { message_id: 10, chat: { id: 5 }, text: '/help' },
+    });
+    expect(m?.text).toBe('/help');
+    expect(m?.isStartCommand).toBeUndefined();
   });
 
   it('extracts a deep-link payload from /start', () => {
@@ -51,6 +74,7 @@ describe('parseUpdate — text messages', () => {
     });
     expect(m?.startPayload).toBe('reg_abc123');
     expect(m?.text).toBe('hello');
+    expect(m?.isStartCommand).toBe(true);
   });
 
   it('marks non-text messages unsupported rather than dropping them', () => {
@@ -179,6 +203,18 @@ describe('TelegramClient', () => {
     await client(f.impl).sendMessage('111', 'hello');
     expect(f.calls[0]?.url).toContain('/bot123:ABC/sendMessage');
     expect(f.calls[0]?.body.chat_id).toBe('111');
+  });
+
+  it('publishes the command menu in Telegram\'s own shape', async () => {
+    const f = fakeFetch([{ status: 200, body: { ok: true, result: true } }]);
+    await client(f.impl).setMyCommands(BOT_COMMANDS);
+
+    expect(f.calls[0]?.url).toContain('/setMyCommands');
+    // Telegram wants `command`, not `name` — getting this wrong returns ok:false and the
+    // menu silently never appears.
+    expect(f.calls[0]?.body.commands).toEqual(
+      BOT_COMMANDS.map((c) => ({ command: c.name, description: c.description })),
+    );
   });
 
   it('disables link previews so a URL cannot cover the advice', async () => {

@@ -216,6 +216,15 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 Verify: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` — `pending_update_count`
 should be 0 and `last_error_message` absent.
 
+`npm run telegram:webhook -- https://<your-url>` does the same thing and also publishes the
+command menu (`/start`, `/help`, `/commands`, `/danger`, `/restart`, `/privacy`, `/stop`),
+which is what gives the bot its Menu button and slash autocomplete. The app publishes the
+menu at boot as well, so this is only needed to refresh it without a redeploy.
+
+**Publish the menu only against a deployment running this code.** The menu belongs to the
+bot, not to the container: advertising a command the running version does not handle means
+a mother taps `/danger` and has it answered as though she had typed a symptom.
+
 ### Option C — Railway, Render or Fly.io
 
 Any host that runs a container and offers PostgreSQL works, and all three are

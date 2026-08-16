@@ -166,6 +166,21 @@ export class TelegramClient {
     await this.call('answerCallbackQuery', { callback_query_id: callbackQueryId });
   }
 
+  /**
+   * Publish the command menu.
+   *
+   * This is what puts the Menu button beside the message box and makes typing "/" offer
+   * autocomplete. It is a per-bot setting, not per-chat: registering once at boot applies
+   * to every mother, including those who started the bot months ago.
+   */
+  async setMyCommands(
+    commands: ReadonlyArray<{ name: string; description: string }>,
+  ): Promise<void> {
+    await this.call('setMyCommands', {
+      commands: commands.map((c) => ({ command: c.name, description: c.description })),
+    });
+  }
+
   /** Register the webhook. `secretToken` is echoed back on every update. */
   async setWebhook(url: string, secretToken: string): Promise<void> {
     await this.call('setWebhook', {

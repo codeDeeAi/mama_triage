@@ -35,6 +35,7 @@ import type { ToolCallClient } from './llm/client';
 import { DeepSeekClient } from './llm/deepseek';
 import { FallbackLlmClient } from './llm/fallbackClient';
 import { TriageService } from './llm/triage';
+import { BOT_COMMANDS } from './orchestrator/commands';
 import { SafetyCheckService } from './llm/safetyCheck';
 import { join } from 'node:path';
 
@@ -192,6 +193,16 @@ async function main(): Promise<void> {
     const tg = new TelegramTransport(telegramClient);
     assertTransportUsable(tg);
     transports.set('telegram', tg);
+
+    // Publish the command menu. Not awaited into the boot path and never fatal: the menu
+    // is a discoverability aid, and a bot that refuses to start because Telegram was slow
+    // to accept a list of labels would be trading a working triage service for a button.
+    void telegramClient
+      .setMyCommands(BOT_COMMANDS)
+      .then(() => logger.info({ commands: BOT_COMMANDS.length }, 'telegram command menu published'))
+      .catch((err: unknown) =>
+        logger.warn({ err }, 'could not publish the telegram command menu — commands still work'),
+      );
   }
 
   logger.info(

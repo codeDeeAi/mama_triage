@@ -30,6 +30,16 @@ import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
 import { buildEmergencyMessage } from './render';
 import { runAssessmentTurn, type AssessmentDeps } from './assessment';
+import {
+  commandListMessage,
+  dangerSignsMessage,
+  getStartedMessage,
+  parseCommand,
+  privacyMessage,
+  restartedMessage,
+  stoppedMessage,
+  type CommandName,
+} from './commands';
 
 export interface HandlerDeps {
   sessions: SessionRepository;
@@ -150,6 +160,23 @@ export function createMessageHandler(deps: HandlerDeps) {
       }
     }
 
+    // ---------------------------------------------------------------------------
+    // COMMANDS. Handled before the transcript is written, and before the safety scan.
+    //
+    // Both exclusions are deliberate. A command is an interaction with the bot, not part
+    // of the clinical conversation: recording "/help" and a screen of help text as
+    // transcript would put them in the window the model reasons over on her next answer,
+    // and in the anonymised transcript the research exports. Skipping the safety scan is
+    // safe for the narrower reason that `parseCommand` is anchored — a message is either
+    // exactly a command or it is not one at all, so nothing clinical can ride along
+    // inside one. "/stop the bleeding" is not a command and reaches the scan intact.
+    // ---------------------------------------------------------------------------
+    const command = resolveCommand(msg, session);
+    if (command) {
+      await handleCommand(deps, session, msg, command, receivedAt);
+      return;
+    }
+
     await deps.messages.record({
       sessionId: session.id,
       direction: 'inbound',
@@ -182,18 +209,7 @@ export function createMessageHandler(deps: HandlerDeps) {
 
     switch (session.state) {
       case 'new':
-        await deps.sessions.setState(session.id, 'awaiting_consent');
-        await deps.whatsapp.sendOptions(msg.from, CONSENT_COPY[session.language], [
-          { id: CONSENT_ACCEPT_ID, title: 'Yes, continue' },
-          { id: CONSENT_DECLINE_ID, title: 'No, thank you' },
-        ]);
-        await deps.messages.record({
-          sessionId: session.id,
-          direction: 'outbound',
-          body: CONSENT_COPY[session.language],
-          detectedLang: session.language,
-          latencyMs: Date.now() - receivedAt,
-        });
+        await sendConsentPrompt(deps, session, msg.from, receivedAt);
         return;
 
       case 'awaiting_consent':
@@ -214,6 +230,118 @@ export function createMessageHandler(deps: HandlerDeps) {
         return;
     }
   };
+}
+
+/**
+ * Open a session by asking for consent.
+ *
+ * Shared by the first message of a session and by `/restart`, so a restarted check is
+ * opened by exactly the same consent gate as a fresh one. Consent is recorded per
+ * session, which means a restart genuinely has to ask again rather than inheriting an
+ * agreement given to a check that is now closed.
+ */
+async function sendConsentPrompt(
+  deps: HandlerDeps,
+  session: SessionRow,
+  to: string,
+  receivedAt: number,
+): Promise<void> {
+  await deps.sessions.setState(session.id, 'awaiting_consent');
+  await deps.whatsapp.sendOptions(to, CONSENT_COPY[session.language], [
+    { id: CONSENT_ACCEPT_ID, title: 'Yes, continue' },
+    { id: CONSENT_DECLINE_ID, title: 'No, thank you' },
+  ]);
+  await deps.messages.record({
+    sessionId: session.id,
+    direction: 'outbound',
+    body: CONSENT_COPY[session.language],
+    detectedLang: session.language,
+    latencyMs: Date.now() - receivedAt,
+  });
+}
+
+/**
+ * Decide whether this message is a command.
+ *
+ * `/start` is the awkward one. It is Telegram's universal opening gesture and it carries
+ * the deep-link payload that binds a web registration to a chat, so `parseUpdate` has
+ * already rewritten it to a greeting by the time it arrives here. For a session that has
+ * not started it must stay a greeting, or the consent gate never opens. For a session
+ * already under way it is a mother asking what this thing is — and answering that with a
+ * greeting routed into the assessment is how you get a symptom question in reply to
+ * someone who is lost.
+ */
+function resolveCommand(msg: InboundMessage, session: SessionRow): CommandName | null {
+  if ((msg as { isStartCommand?: boolean }).isStartCommand) {
+    return session.state === 'new' ? null : 'start';
+  }
+  // A button tap returns callback data, never text a mother typed.
+  if (msg.kind !== 'text') return null;
+  return parseCommand(msg.text);
+}
+
+/**
+ * Answer a command.
+ *
+ * Replies go out through the transport directly rather than through the `reply` helper:
+ * the helper writes to the transcript, and command traffic deliberately stays out of it
+ * (see the call site). The audit log records that the command was used, so the research
+ * record still shows what a mother reached for and when.
+ */
+async function handleCommand(
+  deps: HandlerDeps,
+  session: SessionRow,
+  msg: InboundMessage,
+  command: CommandName,
+  receivedAt: number,
+): Promise<void> {
+  await deps.audit.record('COMMAND_USED', { command }, session.id);
+
+  switch (command) {
+    case 'start':
+    case 'help':
+      await deps.whatsapp.sendText(msg.from, getStartedMessage(session.language));
+      return;
+
+    case 'commands':
+      await deps.whatsapp.sendText(msg.from, commandListMessage(session.language));
+      return;
+
+    case 'danger':
+      await deps.whatsapp.sendText(
+        msg.from,
+        dangerSignsMessage(session.pathway as Pathway, session.language),
+      );
+      return;
+
+    case 'privacy':
+      await deps.whatsapp.sendText(msg.from, privacyMessage(session.language));
+      return;
+
+    case 'restart': {
+      await deps.sessions.setState(session.id, 'abandoned');
+      await deps.audit.record('SESSION_ABANDONED', { via: 'restart' }, session.id);
+      await deps.whatsapp.sendText(msg.from, restartedMessage(session.language));
+
+      // Open the replacement in the same turn. Telling her a new check has started and
+      // then waiting for another message before asking anything would make the sentence
+      // untrue for as long as she stared at the screen.
+      const fresh = await deps.sessions.create(session.wa_id_hash, session.language);
+      await sendConsentPrompt(deps, fresh, msg.from, receivedAt);
+      deps.logger.info({ from: session.id, to: fresh.id }, 'session restarted by command');
+      return;
+    }
+
+    case 'stop':
+      await deps.sessions.setState(session.id, 'abandoned');
+      await deps.audit.record('SESSION_ABANDONED', { via: 'stop' }, session.id);
+      // A check she ended must not produce a reminder two days later.
+      if (deps.followUps) {
+        await deps.followUps.cancelForSession(session.id, 'ended by the mother');
+      }
+      await deps.whatsapp.sendText(msg.from, stoppedMessage(session.language));
+      return;
+  }
 }
 
 /**

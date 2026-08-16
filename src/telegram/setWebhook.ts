@@ -13,6 +13,7 @@
  */
 
 import { TelegramClient } from './client';
+import { BOT_COMMANDS } from '../orchestrator/commands';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -76,6 +77,11 @@ async function main(): Promise<void> {
 
   await client.setWebhook(url, secret);
   process.stdout.write(`Webhook set: ${url}\n`);
+
+  // Also published at boot. Repeated here because the menu is a property of the bot rather
+  // than of the deployment, so this script can fix it without waiting for a redeploy.
+  await client.setMyCommands(BOT_COMMANDS);
+  process.stdout.write(`Command menu published: ${BOT_COMMANDS.map((c) => `/${c.name}`).join(' ')}\n`);
 
   process.stdout.write(
     '\nLong polling is now disabled — Telegram refuses getUpdates while a webhook is ' +
