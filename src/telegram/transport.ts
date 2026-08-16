@@ -40,6 +40,10 @@ export class TelegramTransport implements MessageTransport {
     await this.client.sendMessage(to, body);
   }
 
+  async sendTyping(to: string): Promise<void> {
+    await this.client.sendTyping(to);
+  }
+
   async sendOptions(to: string, body: string, options: readonly ReplyButton[]): Promise<void> {
     await this.client.sendWithButtons(
       to,

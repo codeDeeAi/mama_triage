@@ -102,12 +102,31 @@ export async function runAssessmentTurn(
     return fallback(input, reason);
   }
 
-  // Second pass. Fails open, so a broken check never blocks the assessment.
-  const verdict = await deps.safetyCheck.check({
-    transcript: input.transcript,
-    proposed: decision.urgency,
-    rationale: decision.result.rationale,
-  });
+  // Second pass, on concluding turns only. Fails open, so a broken check never blocks
+  // the assessment.
+  //
+  // It exists to catch an under-triage, and an under-triage requires a triage: a turn
+  // that asks another question has not decided anything yet, so there is nothing to have
+  // got wrong. Running it there anyway was actively harmful — measured over 14 identical
+  // runs of a mother writing "I am feeling tired", it escalated to `emergency` 8 times,
+  // and not once for a danger sign she had described. Every reason given was that the
+  // assessment was still incomplete, which on an early turn is not a finding, it is the
+  // definition of an early turn. Because `renderDecision` turns a mid-assessment
+  // emergency into a terminal referral, each of those ended the conversation with a
+  // false alarm on the first thing she said.
+  //
+  // Mid-assessment danger signs are not left uncovered. `runSafetyScan` in the handler
+  // evaluates the deterministic red-flag register against every inbound message, in
+  // every state, before this code is reached — and unlike a second model, rules cannot
+  // invent a reason to be frightened.
+  const concluding = decision.result.next_action.type === 'conclude';
+  const verdict = concluding
+    ? await deps.safetyCheck.check({
+        transcript: input.transcript,
+        proposed: decision.urgency,
+        rationale: decision.result.rationale,
+      })
+    : { urgency: decision.urgency, escalated: false };
 
   const finalUrgency = ratchet(decision.urgency, verdict.urgency);
   const escalated = finalUrgency !== decision.urgency;
@@ -133,8 +152,19 @@ function fallback(input: AssessmentInput, reason: FallbackReason): AssessmentOut
   const message = buildFallback(input.pathway, input.language, reason);
   return {
     messages: [message.body],
-    // The fallback ends the session safely rather than continuing to assess.
-    state: 'completed',
+    // The session stays open.
+    //
+    // This used to complete the session, which meant a transient model error sent a
+    // mother back to the consent prompt to start the whole assessment again. Ending it
+    // is not what makes the fallback safe — the danger-sign list is: she has, in hand,
+    // the signs that mean go now, and that text is identical either way. What ending it
+    // cost was every mother who had already answered three questions and was not going
+    // to answer them a second time.
+    //
+    // Slots and the urgency high-water mark are carried through unchanged, so her next
+    // message resumes the assessment where it stopped rather than restarting it. The
+    // ratchet still forbids any later turn proposing something less urgent.
+    state: 'assessing',
     urgency: input.currentUrgency,
     slots: input.knownSlots,
     fallbackReason: reason,

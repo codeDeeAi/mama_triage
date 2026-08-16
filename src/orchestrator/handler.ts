@@ -425,6 +425,18 @@ async function handleAssessment(
     return;
   }
 
+  // Retrieval plus a model call is six to eight seconds. Without this the chat sits
+  // silent for that long, which reads as the bot having stopped rather than thinking —
+  // and a mother who gives up mid-assessment is the failure this whole system exists to
+  // avoid. Swallowed on failure: an indicator is not worth an assessment.
+  if (deps.whatsapp.sendTyping) {
+    try {
+      await deps.whatsapp.sendTyping(msg.from);
+    } catch (err) {
+      deps.logger.debug({ err }, 'typing indicator failed');
+    }
+  }
+
   const history = await deps.messages.recentForSession(
     session.id,
     deps.transcriptWindow ?? 20,

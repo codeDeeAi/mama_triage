@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { URGENCY_VALUES } from '../types';
+import { URGENCY_VALUES, type Pathway } from '../types';
 
 /** Permitted slot values, kept in step with `Slots` in src/types.ts. */
 export const SLOT_ENUMS = {
@@ -43,6 +43,41 @@ export const NUMERIC_SLOTS = {
   age_days: { min: 0, max: 400 },
   days_postpartum: { min: 0, max: 400 },
 } as const;
+
+/**
+ * Which slots belong to which pathway.
+ *
+ * Offering all of them on every turn let the model file a mother's own words under a
+ * newborn's slot: "I am feeling tired", on a maternal assessment, came back as
+ * `activity: less_active` — a neonatal observation about a baby nobody was discussing.
+ * That corrupts the record the red-flag rules and the evaluation both read, so the tool
+ * schema is built per pathway and the wrong slots are simply not offered.
+ *
+ * The Zod validator stays permissive across both sets: it guards value correctness, and
+ * rejecting a whole turn over a misfiled slot would cost the mother her assessment.
+ */
+export const PATHWAY_SLOTS = {
+  neonatal: [
+    'feeding',
+    'temperature',
+    'jaundice',
+    'breathing',
+    'activity',
+    'age_days',
+    'cord_appearance',
+    'neonatal_convulsions',
+  ],
+  maternal: [
+    'bleeding',
+    'fever',
+    'wound',
+    'breast',
+    'preeclampsia',
+    'days_postpartum',
+    'delivery_mode',
+    'mood_concerns',
+  ],
+} as const satisfies Record<'neonatal' | 'maternal', readonly string[]>;
 
 const slotShape = Object.fromEntries([
   ...Object.entries(SLOT_ENUMS).map(([key, values]) => [
@@ -117,14 +152,33 @@ export type SafetyVerdict = z.infer<typeof SafetyVerdict>;
  * JSON Schema for the `record_triage` tool.
  *
  * Derived from the same constants as the Zod schema so the model's declared contract and
- * the runtime validation cannot drift apart.
+ * the runtime validation cannot drift apart. `next_action` in particular must keep one
+ * branch per Zod union member: a model that reads the schema literally will omit whatever
+ * the schema does not mark required, and be rejected for it.
+ *
+ * @param pathway restricts `extracted_slots` to that pathway's slots. Omit only where no
+ *   pathway is established — the mother's own answers must not be filed under a newborn's
+ *   slots, or the other way round.
+ * @param opts.mustConclude removes the `ask` branch entirely, so a model that has every
+ *   answer cannot ask a sixth question. Prose asking it to wrap up is a request; removing
+ *   the branch is a guarantee.
  */
-export function triageToolSchema(): Record<string, unknown> {
+export function triageToolSchema(
+  pathway?: Pathway,
+  opts: { mustConclude?: boolean } = {},
+): Record<string, unknown> {
+  const allowed =
+    pathway === 'maternal' || pathway === 'neonatal'
+      ? new Set<string>(PATHWAY_SLOTS[pathway])
+      : null;
+
   const slotProperties: Record<string, unknown> = {};
   for (const [key, values] of Object.entries(SLOT_ENUMS)) {
+    if (allowed && !allowed.has(key)) continue;
     slotProperties[key] = { type: 'string', enum: [...values] };
   }
   for (const [key, range] of Object.entries(NUMERIC_SLOTS)) {
+    if (allowed && !allowed.has(key)) continue;
     slotProperties[key] = { type: 'integer', minimum: range.min, maximum: range.max };
   }
 
@@ -147,7 +201,8 @@ export function triageToolSchema(): Record<string, unknown> {
       },
       red_flags: {
         type: 'array',
-        items: { type: 'string' },
+        items: { type: 'string', maxLength: 60 },
+        maxItems: 20,
         description: 'IDs of danger signs that apply, e.g. NEO_NOT_FEEDING.',
       },
       urgency: { type: 'string', enum: [...URGENCY_VALUES] },
@@ -155,34 +210,96 @@ export function triageToolSchema(): Record<string, unknown> {
       citations: {
         type: 'array',
         minItems: 1,
+        maxItems: 10,
         items: {
           type: 'object',
           properties: {
             chunk_id: {
               type: 'string',
+              minLength: 1,
               description: 'Must be a chunk_id from the supplied context blocks.',
             },
-            claim: { type: 'string' },
+            claim: { type: 'string', minLength: 1, maxLength: 500 },
           },
           required: ['chunk_id', 'claim'],
         },
       },
+      // A branch each, with its own `required`.
+      //
+      // This was one loose object requiring only `type`, which told the model that
+      // `meaning`, `steps` and `return_warnings` were optional — while the Zod union
+      // below rejected a `conclude` that omitted them. A model that reads the schema
+      // literally therefore failed the contract on every concluding turn, twice, and the
+      // mother got the static fallback at the exact moment she was owed an answer. It
+      // only ever "worked" because the previous model inferred the fields from the prose
+      // in the system prompt.
       next_action: {
-        type: 'object',
-        description:
-          'Either ask one more question, or conclude the assessment.',
-        properties: {
-          type: { type: 'string', enum: ['ask', 'conclude'] },
-          domain: { type: 'string' },
-          question: { type: 'string' },
-          meaning: { type: 'string' },
-          steps: { type: 'array', items: { type: 'string' }, maxItems: 5 },
-          return_warnings: { type: 'array', items: { type: 'string' }, maxItems: 6 },
-        },
-        required: ['type'],
+        description: opts.mustConclude
+          ? 'Every assessment domain has been answered. Conclude now.'
+          : 'Either ask one more question, or conclude the assessment.',
+        oneOf: [
+          ...(opts.mustConclude
+            ? []
+            : [
+                {
+                  type: 'object',
+                  description: 'Ask one more question.',
+                  properties: {
+                    type: { type: 'string', enum: ['ask'] },
+                    domain: {
+                      type: 'string',
+                      minLength: 1,
+                      maxLength: 60,
+                      description: 'Which assessment domain the question belongs to.',
+                    },
+                    question: {
+                      type: 'string',
+                      minLength: 1,
+                      maxLength: 500,
+                      description:
+                        'The single question to put to the mother, in her language.',
+                    },
+                  },
+                  required: ['type', 'domain', 'question'],
+                  additionalProperties: false,
+                },
+              ]),
+          {
+            type: 'object',
+            description: 'Conclude the assessment. All three fields are required.',
+            properties: {
+              type: { type: 'string', enum: ['conclude'] },
+              meaning: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 600,
+                description: 'Plain-language explanation of what the finding means.',
+              },
+              steps: {
+                type: 'array',
+                items: { type: 'string', minLength: 1, maxLength: 300 },
+                minItems: 1,
+                maxItems: 5,
+                description: 'Imperative steps she should take now.',
+              },
+              return_warnings: {
+                type: 'array',
+                items: { type: 'string', minLength: 1, maxLength: 300 },
+                minItems: 1,
+                maxItems: 6,
+                description:
+                  'Signs that mean come back or seek care. Required even for self_care.',
+              },
+            },
+            required: ['type', 'meaning', 'steps', 'return_warnings'],
+            additionalProperties: false,
+          },
+        ],
       },
       rationale: {
         type: 'string',
+        minLength: 1,
+        maxLength: 2000,
         description: 'Clinical reasoning for the record. Never shown to the mother.',
       },
     },

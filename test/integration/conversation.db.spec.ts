@@ -329,7 +329,7 @@ describe('urgency ratchet across assessment turns', () => {
 });
 
 describe('LLM failure during assessment', () => {
-  maybe('sends the static fallback and ends safely', async () => {
+  maybe('sends the static fallback and leaves the assessment open', async () => {
     const c = ctx(scriptedAssessment([new LlmError('down', 'timeout')]));
     await reachAssessing(c);
     await c.send('he seems unwell');
@@ -338,8 +338,10 @@ describe('LLM failure during assessment', () => {
     expect(c.wa.last).toMatch(/unable to suck at the breast/i);
     expect(c.wa.last).toMatch(/nearest health facility/i);
 
+    // She has the danger signs in hand — that is what makes this safe. Completing the
+    // session on top of it only sent her back to the consent prompt to start again.
     const session = await c.session();
-    expect(session?.state).toBe('completed');
+    expect(session?.state).toBe('assessing');
 
     const events = (await c.audit.listForSession(session!.id)).map((e) => e.event);
     expect(events).toContain('LLM_FAILOVER');

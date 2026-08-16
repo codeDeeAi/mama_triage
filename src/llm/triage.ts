@@ -22,6 +22,7 @@ import type { Pathway, RedFlagHit, Slots, Urgency } from '../types';
 import { LlmError } from './anthropic';
 import type { ToolCallClient } from './client';
 import { TriageResult, triageToolSchema } from './schema';
+import { isAssessmentComplete, remainingDomains } from '../orchestrator/pathways';
 
 export type EscalationSource = 'rules' | 'safety_check' | 'low_confidence' | null;
 
@@ -105,6 +106,11 @@ export class TriageService {
     let call: Awaited<ReturnType<ToolCallClient['callTool']>> | undefined;
     let lastProblem = '';
 
+    // Measured against the slots established *before* this turn, which is the only view
+    // the state machine has. A mother who has just answered the last outstanding domain
+    // therefore gets her conclusion on the following turn rather than this one.
+    const mustConclude = isAssessmentComplete(req.pathway, req.knownSlots);
+
     // One retry: a schema or citation failure is often a one-off, but a second failure
     // means the model cannot satisfy the contract and the fallback is the safe answer.
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -126,7 +132,12 @@ export class TriageService {
               ],
         toolName: TOOL_NAME,
         toolDescription: TOOL_DESCRIPTION,
-        toolSchema: triageToolSchema(),
+        // When the state machine has every domain, the `ask` branch is withdrawn. The
+        // assessment used to run past its own definition of complete — five domains
+        // answered and it would open a sixth question, or re-ask one she had already
+        // answered — because nothing but prose ever told it to stop. `isAssessmentComplete`
+        // existed for exactly this and was never called.
+        toolSchema: triageToolSchema(req.pathway, { mustConclude }),
         maxTokens: this.maxTokens,
         cacheSystemPrompt: true,
       });
@@ -185,6 +196,28 @@ export class TriageService {
             .join(', ')}`
         : 'ALREADY ESTABLISHED: nothing yet',
     );
+
+    // Name the outstanding domains, and the one to ask next.
+    //
+    // The state machine has always known this — `remainingDomains` and `nextDomain` are
+    // right here — but the model was only ever shown what was already established, and
+    // was left to infer the rest from `PATHWAY: maternal`. It inferred badly: on a
+    // maternal assessment it repeatedly asked whether the *baby* was feeding and active,
+    // a question with no slot to land in, so the answer changed nothing and it asked
+    // again the next turn. Saying what is outstanding turns "guess what I want" into an
+    // instruction, and is what makes the coverage guarantee in the file header real.
+    const remaining = remainingDomains(req.pathway, req.knownSlots);
+    if (remaining.length > 0) {
+      state.push(
+        `STILL TO COVER (this pathway only): ${remaining.map((d) => d.label).join(', ')}`,
+      );
+      state.push(
+        `ASK ABOUT THIS NEXT: ${remaining[0]?.label}. Ask about nothing else, and ` +
+          `ask one question only.`,
+      );
+    } else {
+      state.push('EVERY DOMAIN IS ANSWERED. Conclude now — do not ask another question.');
+    }
 
     if (req.currentUrgency) {
       state.push(

@@ -179,7 +179,12 @@ describe('runAssessmentTurn — second-pass escalation', () => {
     expect(out.messages[0]).toMatch(/nearest health facility now/i);
   });
 
-  it('converts a pending question into an emergency message', async () => {
+  it('does not run the second pass on a turn that only asks a question', async () => {
+    // The check exists to catch an under-triage, and a turn that asks another question
+    // has not triaged anything yet. Run there, it escalated to `emergency` on 8 of 14
+    // identical runs of a mother writing "I am feeling tired" — never for a danger sign
+    // she had described, always because the assessment was still incomplete, which on an
+    // early turn is the definition of an early turn rather than a finding.
     const out = await runAssessmentTurn(
       deps({
         decision: decision({
@@ -191,8 +196,52 @@ describe('runAssessmentTurn — second-pass escalation', () => {
       input(),
     );
 
+    expect(out.safetyCheckEscalated).toBe(false);
+    expect(out.urgency).toBe('self_care');
+    expect(out.state).toBe('assessing');
+    // Her question is asked, not replaced by a false referral.
+    expect(out.messages[0]).toContain('Is the baby yellow?');
+  });
+
+  it('still converts a pending question into an emergency when the model itself escalates', async () => {
+    // A different case, and unchanged: the model assigning `emergency` while proposing
+    // another question means continuing to ask would delay the only instruction that
+    // matters. This path never depended on the second pass.
+    const out = await runAssessmentTurn(
+      deps({
+        decision: decision({
+          urgency: 'emergency',
+          action: { type: 'ask', domain: 'jaundice', question: 'Is the baby yellow?' },
+        }),
+      }),
+      input(),
+    );
+
     expect(out.messages[0]).toContain('EMERGENCY');
     expect(out.messages[0]).not.toContain('Is the baby yellow?');
+    expect(out.state).toBe('escalated');
+  });
+
+  it('still runs the second pass when the model concludes', async () => {
+    // Removing it from asking turns must not remove it from the turn it exists for.
+    let ran = false;
+    const d = deps({
+      decision: decision({ urgency: 'self_care' }),
+      verdict: { urgency: 'facility_visit', escalated: true, reason: 'missed sign' },
+    });
+    const inner = d.safetyCheck.check.bind(d.safetyCheck);
+    d.safetyCheck = {
+      check: async (arg: never) => {
+        ran = true;
+        return inner(arg);
+      },
+    } as never;
+
+    const out = await runAssessmentTurn(d, input());
+
+    expect(ran).toBe(true);
+    expect(out.urgency).toBe('facility_visit');
+    expect(out.safetyCheckEscalated).toBe(true);
   });
 
   it('records the escalation source on the decision', async () => {
@@ -232,8 +281,21 @@ describe('runAssessmentTurn — the system never goes quiet', () => {
     expect(out.fallbackReason).toBe(reason);
     expect(out.messages[0]).toMatch(/not able to complete/i);
     expect(out.messages[0]).toMatch(/nearest health facility/i);
-    // Ends safely rather than continuing to assess.
-    expect(out.state).toBe('completed');
+    // The session stays open. What makes the fallback safe is the danger-sign list she
+    // now has, not the session ending — and ending it sent a mother who had already
+    // answered three questions back to the consent prompt to start again.
+    expect(out.state).toBe('assessing');
+  });
+
+  it('keeps established slots and urgency so the next turn resumes rather than restarts', async () => {
+    const out = await runAssessmentTurn(
+      deps({ triageError: new LlmError('timed out', 'timeout') }),
+      input({ knownSlots: { feeding: 'reduced' }, currentUrgency: 'facility_visit' }),
+    );
+
+    expect(out.state).toBe('assessing');
+    expect(out.slots).toEqual({ feeding: 'reduced' });
+    expect(out.urgency).toBe('facility_visit');
   });
 
   it('falls back when retrieval fails', async () => {

@@ -192,3 +192,137 @@ describe('tool schemas', () => {
     expect(schema.required).toEqual(expect.arrayContaining(['verdict', 'reason']));
   });
 });
+
+/**
+ * The drift that broke production.
+ *
+ * `next_action` was declared as one loose object requiring only `type`, while the Zod
+ * union required `meaning`, `steps` and `return_warnings` for a conclusion. A model that
+ * reads the schema literally omitted them, failed validation twice, and the mother got
+ * the static danger-sign fallback on the exact turn she was owed an answer.
+ *
+ * These assert the two descriptions of `next_action` agree, so the contract the model is
+ * given can never again promise less than the validator demands.
+ */
+describe('tool schema and validator agree on next_action', () => {
+  interface Branch {
+    properties: Record<string, unknown>;
+    required: string[];
+  }
+  const branches = (): Branch[] =>
+    (triageToolSchema() as { properties: { next_action: { oneOf: Branch[] } } }).properties
+      .next_action.oneOf;
+
+  const branchFor = (type: string): Branch => {
+    const found = branches().find(
+      (b) => (b.properties.type as { enum?: string[] }).enum?.[0] === type,
+    );
+    if (!found) throw new Error(`no ${type} branch`);
+    return found;
+  };
+
+  it('offers exactly one branch per Zod union member', () => {
+    expect(branches()).toHaveLength(2);
+    expect(
+      branches().map((b) => (b.properties.type as { enum: string[] }).enum[0]).sort(),
+    ).toEqual(['ask', 'conclude']);
+  });
+
+  it('marks every field the validator requires for a conclusion', () => {
+    expect(branchFor('conclude').required.sort()).toEqual([
+      'meaning',
+      'return_warnings',
+      'steps',
+      'type',
+    ]);
+  });
+
+  it('marks every field the validator requires for a question', () => {
+    expect(branchFor('ask').required.sort()).toEqual(['domain', 'question', 'type']);
+  });
+
+  /**
+   * The property that actually matters: anything the schema permits, Zod must accept.
+   * Building the minimum payload each branch declares and validating it is exactly what
+   * would have caught the original bug.
+   */
+  it.each(['ask', 'conclude'])('accepts the minimum payload the %s branch declares', (type) => {
+    const minimum: Record<string, Record<string, unknown>> = {
+      ask: { type: 'ask', domain: 'bleeding', question: 'How much are you bleeding?' },
+      conclude: {
+        type: 'conclude',
+        meaning: 'This can be managed at home.',
+        steps: ['Rest and drink fluids'],
+        return_warnings: ['Go for help if the bleeding increases'],
+      },
+    };
+    expect(TriageResult.safeParse(valid({ next_action: minimum[type] })).success).toBe(true);
+  });
+
+  it('rejects a conclusion missing what the branch marks required', () => {
+    // The exact shape returned when the schema said only `type` was needed.
+    expect(TriageResult.safeParse(valid({ next_action: { type: 'conclude' } })).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('forcing a conclusion', () => {
+  const types = (opts?: { mustConclude?: boolean }): string[] =>
+    (
+      triageToolSchema('maternal', opts) as {
+        properties: { next_action: { oneOf: Array<{ properties: { type: { enum: string[] } } }> } };
+      }
+    ).properties.next_action.oneOf.map((b) => String(b.properties.type.enum[0]));
+
+  it('offers both branches while domains are outstanding', () => {
+    expect(types().sort()).toEqual(['ask', 'conclude']);
+  });
+
+  it('withdraws the ask branch once every domain is answered', () => {
+    // Prose asking the model to wrap up is a request it ignored for five turns running.
+    // Removing the branch is a guarantee.
+    expect(types({ mustConclude: true })).toEqual(['conclude']);
+  });
+});
+
+describe('pathway-scoped slots', () => {
+  const slotsFor = (pathway?: 'maternal' | 'neonatal'): string[] =>
+    Object.keys(
+      (
+        triageToolSchema(pathway) as {
+          properties: { extracted_slots: { properties: Record<string, unknown> } };
+        }
+      ).properties.extracted_slots.properties,
+    );
+
+  it('does not offer newborn slots on a maternal assessment', () => {
+    // "I am feeling tired", from the mother, came back as activity=less_active — an
+    // observation about a baby nobody was discussing.
+    const maternal = slotsFor('maternal');
+    expect(maternal).toContain('bleeding');
+    expect(maternal).toContain('days_postpartum');
+    expect(maternal).not.toContain('activity');
+    expect(maternal).not.toContain('feeding');
+    expect(maternal).not.toContain('age_days');
+  });
+
+  it('does not offer maternal slots on a newborn assessment', () => {
+    const neonatal = slotsFor('neonatal');
+    expect(neonatal).toContain('feeding');
+    expect(neonatal).toContain('age_days');
+    expect(neonatal).not.toContain('bleeding');
+    expect(neonatal).not.toContain('preeclampsia');
+  });
+
+  it('offers every slot when no pathway is established', () => {
+    expect(slotsFor()).toEqual(
+      expect.arrayContaining(['bleeding', 'feeding', 'age_days', 'days_postpartum']),
+    );
+  });
+
+  it('covers every slot between the two pathways, so none is unreachable', () => {
+    const union = [...new Set([...slotsFor('maternal'), ...slotsFor('neonatal')])];
+    expect(union.sort()).toEqual(slotsFor().sort());
+  });
+});

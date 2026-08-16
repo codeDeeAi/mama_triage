@@ -167,6 +167,16 @@ export class TelegramClient {
   }
 
   /**
+   * Show "typing…" in the chat.
+   *
+   * Telegram clears it after five seconds or when the next message arrives, whichever
+   * comes first, so it is sent once per turn rather than kept alive on a timer.
+   */
+  async sendTyping(chatId: string): Promise<void> {
+    await this.call('sendChatAction', { chat_id: chatId, action: 'typing' });
+  }
+
+  /**
    * Publish the command menu.
    *
    * This is what puts the Menu button beside the message box and makes typing "/" offer

@@ -69,6 +69,15 @@ export interface MessageTransport {
    * `renderButtonsAsText`.
    */
   sendOptions(to: string, body: string, options: readonly ReplyButton[]): Promise<void>;
+  /**
+   * Show that a reply is being prepared, if the channel has the concept.
+   *
+   * An assessment turn costs a retrieval call and a model call — six to eight seconds of
+   * nothing, which on a phone is indistinguishable from the bot having stopped. Optional
+   * because not every transport can do it, and never load-bearing: a failed indicator
+   * must never cost the mother her assessment.
+   */
+  sendTyping?(to: string): Promise<void>;
 }
 
 /**
