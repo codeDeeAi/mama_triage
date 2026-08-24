@@ -15,7 +15,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 ## Status
 
-**1,000 tests.** Typecheck, build and Docker image all clean.
+**1,016 tests.** Typecheck, build and Docker image all clean.
 
 | Component | State |
 |---|---|

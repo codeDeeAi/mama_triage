@@ -168,6 +168,44 @@ describe('messaging channels — WhatsApp, Telegram, or both', () => {
   });
 });
 
+describe('WHATSAPP_BUSINESS_NUMBER', () => {
+  it('carries the number registration shows when a welcome template fails', () => {
+    const cfg = parseConfig({
+      ...validEnv(),
+      WHATSAPP_BUSINESS_NUMBER: '+1 555-653-9335',
+    });
+    expect(cfg.whatsapp?.businessNumber).toBe('+1 555-653-9335');
+  });
+
+  it('is not part of the all-or-nothing credential group', () => {
+    // It is not a credential and nothing fails without it — the value can be read back
+    // from Meta instead. Folding it into the group would turn a cosmetic omission into a
+    // service that refuses to start.
+    const env = validEnv();
+    delete env.WHATSAPP_BUSINESS_NUMBER;
+
+    const cfg = parseConfig(env);
+    expect(cfg.whatsapp).toBeDefined();
+    expect(cfg.whatsapp?.businessNumber).toBeUndefined();
+  });
+
+  it('does not by itself count as a configured WhatsApp channel', () => {
+    // A number with no credentials cannot send or receive anything. Accepting it as a
+    // channel would present WhatsApp at registration and then drop every message.
+    const env = validEnv();
+    delete env.WHATSAPP_TOKEN;
+    delete env.WHATSAPP_PHONE_NUMBER_ID;
+    delete env.WHATSAPP_VERIFY_TOKEN;
+    delete env.WHATSAPP_APP_SECRET;
+    env.TELEGRAM_BOT_TOKEN = '123:ABC';
+    env.TELEGRAM_WEBHOOK_SECRET = 'a-shared-secret';
+    env.WHATSAPP_BUSINESS_NUMBER = '+1 555-653-9335';
+
+    const cfg = parseConfig(env);
+    expect(cfg.whatsapp).toBeUndefined();
+  });
+});
+
 describe('assessment credentials are optional', () => {
   it('starts without LLM credentials, with assessment disabled', () => {
     // The deterministic safety layer, consent and pathway selection are what a mother

@@ -1,5 +1,10 @@
 import { isStatusCallback, parseInbound } from '../../src/whatsapp/parseInbound';
-import { splitMessage, WhatsAppClient, WhatsAppApiError } from '../../src/whatsapp/client';
+import {
+  splitMessage,
+  parseBusinessNumber,
+  WhatsAppClient,
+  WhatsAppApiError,
+} from '../../src/whatsapp/client';
 import { PREFERRED_BUBBLE_LENGTH } from '../../src/whatsapp/types';
 import {
   MetaCloudTransport,
@@ -268,6 +273,77 @@ describe('WhatsAppClient — retry policy', () => {
     const res = await client(impl).sendText('234801', 'hi');
     expect(res[0]?.waMessageId).toBe('wamid.N');
     expect(calls).toBe(2);
+  });
+});
+
+describe('parseBusinessNumber', () => {
+  it('keeps the number as written and derives the digits for a wa.me link', () => {
+    expect(parseBusinessNumber('+1 555-653-9335')).toEqual({
+      display: '+1 555-653-9335',
+      dialable: '15556539335',
+      verifiedName: null,
+    });
+  });
+
+  it('accepts the shapes a person actually types', () => {
+    for (const raw of ['+2348012345678', '  +234 801 234 5678  ', '(234) 801-234-5678']) {
+      expect(parseBusinessNumber(raw)?.dialable).toBe('2348012345678');
+    }
+  });
+
+  it('rejects anything too short to dial, rather than linking nowhere', () => {
+    // A half-typed number in configuration should degrade to "we cannot show you our
+    // number", not render a wa.me link that opens a chat with nobody.
+    for (const raw of ['', '   ', '+1 555', 'not a number', undefined, null]) {
+      expect(parseBusinessNumber(raw)).toBeNull();
+    }
+  });
+});
+
+describe('WhatsAppClient.fetchBusinessNumber', () => {
+  it('asks Meta which number this deployment sends from', async () => {
+    // WHATSAPP_PHONE_NUMBER_ID is an opaque Graph ID, not a number anyone can dial, so
+    // the configuration alone cannot tell a mother where to write.
+    const f = fakeFetch([
+      { status: 200, body: { display_phone_number: '+1 555-653-9335', verified_name: 'MamaTriage' } },
+    ]);
+    const out = await client(f.impl).fetchBusinessNumber();
+
+    expect(out).toEqual({
+      display: '+1 555-653-9335',
+      dialable: '15556539335', // punctuation stripped, for a wa.me link
+      verifiedName: 'MamaTriage',
+    });
+    expect(f.calls[0]?.url).toContain('/PNID?fields=display_phone_number');
+    expect((f.calls[0]?.init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+  });
+
+  it('returns null rather than throwing when Meta refuses', async () => {
+    // Not knowing the number degrades one sentence of one page. It must never be the
+    // reason a triage service refuses to start.
+    const f = fakeFetch([{ status: 401, body: { error: { message: 'bad token' } } }]);
+    await expect(client(f.impl).fetchBusinessNumber()).resolves.toBeNull();
+  });
+
+  it('returns null on a response with no number in it', async () => {
+    const f = fakeFetch([{ status: 200, body: { verified_name: 'MamaTriage' } }]);
+    await expect(client(f.impl).fetchBusinessNumber()).resolves.toBeNull();
+  });
+
+  it('returns null when something too short to dial comes back', async () => {
+    const f = fakeFetch([{ status: 200, body: { display_phone_number: '+1 555' } }]);
+    await expect(client(f.impl).fetchBusinessNumber()).resolves.toBeNull();
+  });
+
+  it('returns null when the call fails outright', async () => {
+    const boom = (async () => { throw new Error('network down'); }) as unknown as typeof fetch;
+    await expect(client(boom).fetchBusinessNumber()).resolves.toBeNull();
+  });
+
+  it('does not retry — this is a boot-time nicety, not a send', async () => {
+    const f = fakeFetch([{ status: 500 }]);
+    await client(f.impl).fetchBusinessNumber();
+    expect(f.callCount).toBe(1);
   });
 });
 

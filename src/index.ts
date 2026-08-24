@@ -16,7 +16,11 @@ import { RegistrationRepository } from './db/repositories/registration.repo';
 import { FollowUpRepository } from './db/repositories/followup.repo';
 import { startFollowUpRunner } from './scheduler/followUpRunner';
 import { SmsNotifier } from './sms/notifier';
-import { WhatsAppClient } from './whatsapp/client';
+import {
+  WhatsAppClient,
+  parseBusinessNumber,
+  type BusinessNumber,
+} from './whatsapp/client';
 import {
   MetaCloudTransport,
   assertTransportUsable,
@@ -174,17 +178,58 @@ async function main(): Promise<void> {
   // and her session is keyed by channel + identifier, so both can run side by side.
   const transports = new Map<string, MessageTransport>();
 
+  // The number Meta sends from, for the one place registration has to name it. Resolved
+  // at boot rather than per request so a mother never waits on a Graph call.
+  let whatsappNumber: BusinessNumber | undefined;
+
   if (config.whatsapp) {
-    const wa = new MetaCloudTransport(
-      new WhatsAppClient({
-        token: config.whatsapp.token,
-        phoneNumberId: config.whatsapp.phoneNumberId,
-      }),
-    );
+    const waClient = new WhatsAppClient({
+      token: config.whatsapp.token,
+      phoneNumberId: config.whatsapp.phoneNumberId,
+    });
+    const wa = new MetaCloudTransport(waClient);
     // Fails fast on a send-only provider rather than silently dropping every inbound
     // message while appearing to work.
     assertTransportUsable(wa);
     transports.set('whatsapp', wa);
+
+    // Configured wins over discovered: it is explicit, it costs no boot-time network
+    // call, and it still works when Meta is unreachable. The lookup is the fallback for
+    // a deployment that has not set it.
+    const configured = parseBusinessNumber(config.whatsapp.businessNumber);
+    whatsappNumber = configured ?? (await waClient.fetchBusinessNumber()) ?? undefined;
+
+    if (configured) {
+      logger.info({ number: configured.display }, 'whatsapp business number configured');
+
+      // Two places can now hold the same fact, so say so the moment they stop agreeing.
+      // Silent drift here means registration hands a mother a number Meta does not send
+      // from, and her message goes to a stranger.
+      void waClient
+        .fetchBusinessNumber()
+        .then((live) => {
+          if (live && live.dialable !== configured.dialable) {
+            logger.warn(
+              { configured: configured.display, meta: live.display },
+              'WHATSAPP_BUSINESS_NUMBER does not match the number Meta sends from — ' +
+                'registration is showing the configured one. Correct it or unset it and ' +
+                'let the value be read from Meta',
+            );
+          }
+        })
+        .catch(() => undefined);
+    } else if (whatsappNumber) {
+      logger.info(
+        { number: whatsappNumber.display, verifiedName: whatsappNumber.verifiedName },
+        'whatsapp business number read from Meta — set WHATSAPP_BUSINESS_NUMBER to skip this',
+      );
+    } else {
+      logger.warn(
+        'no whatsapp business number: WHATSAPP_BUSINESS_NUMBER is unset and Meta could ' +
+          'not be asked. Registration will not be able to tell a mother where to write ' +
+          'if a welcome template fails',
+      );
+    }
   }
 
   let telegramClient: TelegramClient | undefined;
@@ -283,6 +328,7 @@ async function main(): Promise<void> {
       ...(transports.has('whatsapp')
         ? { whatsappTransport: transports.get('whatsapp') as MessageTransport }
         : {}),
+      ...(whatsappNumber ? { whatsappNumber } : {}),
       studyName: process.env.STUDY_NAME ?? 'the MIVA maternal health study',
     },
     demo: {

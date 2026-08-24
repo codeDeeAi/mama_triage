@@ -49,6 +49,18 @@ const schema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
   WHATSAPP_APP_SECRET: z.string().optional(),
+  /**
+   * The dialable number Meta sends from, e.g. "+1 555-653-9335".
+   *
+   * Deliberately OUTSIDE the all-or-nothing group above: it is not a credential and
+   * nothing fails without it. Registration uses it for one case — the welcome template
+   * did not send, so she has to write to us first, and the page has to say where.
+   *
+   * Optional because the same fact can be read back from Meta with the credentials
+   * already configured. Setting it wins over that lookup: it is explicit, it costs no
+   * boot-time network call, and it still works when Meta is unreachable.
+   */
+  WHATSAPP_BUSINESS_NUMBER: z.string().optional(),
 
   // Telegram Bot API. TELEGRAM_WEBHOOK_SECRET is the shared secret Telegram echoes on
   // every update; without it the webhook is unauthenticated.
@@ -118,6 +130,8 @@ export interface Config {
     phoneNumberId: string;
     verifyToken: string;
     appSecret: string;
+    /** As configured. Absent means "ask Meta at boot instead". */
+    businessNumber?: string;
   };
   telegram?: {
     botToken: string;
@@ -231,6 +245,9 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
             phoneNumberId: c.WHATSAPP_PHONE_NUMBER_ID as string,
             verifyToken: c.WHATSAPP_VERIFY_TOKEN as string,
             appSecret: c.WHATSAPP_APP_SECRET as string,
+            ...(c.WHATSAPP_BUSINESS_NUMBER
+              ? { businessNumber: c.WHATSAPP_BUSINESS_NUMBER }
+              : {}),
           },
         }
       : {}),

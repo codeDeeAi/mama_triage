@@ -30,6 +30,37 @@ export interface SendResult {
   waMessageId: string | null;
 }
 
+/** The number a mother would see, and could message back. */
+export interface BusinessNumber {
+  /** As written, e.g. "+1 555-653-9335". For showing to a person. */
+  display: string;
+  /** Digits only, e.g. "15556539335". For a wa.me link. */
+  dialable: string;
+  /** The display name Meta has approved for the number, when there is one. */
+  verifiedName: string | null;
+}
+
+/**
+ * Turn a human-written number into both forms the pages need.
+ *
+ * Shared by the configured value and the value discovered from Meta, so the two cannot
+ * disagree about what counts as a usable number. Returns null for anything too short to
+ * dial — a half-typed number in configuration should degrade to "we cannot show you our
+ * number" rather than render a link that goes nowhere.
+ */
+export function parseBusinessNumber(
+  raw: string | undefined | null,
+  verifiedName: string | null = null,
+): BusinessNumber | null {
+  const display = raw?.trim();
+  if (!display) return null;
+
+  const dialable = display.replace(/\D/g, '');
+  if (dialable.length < 8) return null;
+
+  return { display, dialable, verifiedName };
+}
+
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -121,6 +152,46 @@ export class WhatsAppClient {
 
   private get endpoint(): string {
     return `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}/messages`;
+  }
+
+  /**
+   * Ask Meta which number this deployment sends from.
+   *
+   * `WHATSAPP_PHONE_NUMBER_ID` is an opaque Graph ID, not a number anyone can dial, so
+   * the configuration alone cannot tell a mother where to write. Registration needs the
+   * dialable number for exactly one case that matters: the welcome template did not
+   * send, and "message our number" is useless without it.
+   *
+   * Asked for rather than configured, because a second variable holding the same fact
+   * is a second variable that can drift out of step with the credentials beside it.
+   *
+   * Returns null rather than throwing: not knowing the number degrades one sentence of
+   * one page, and must never be the reason a triage service refuses to start.
+   */
+  async fetchBusinessNumber(timeoutMs = 5000): Promise<BusinessNumber | null> {
+    const url =
+      `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}` +
+      `?fields=display_phone_number,verified_name`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await this.fetchImpl(url, {
+        headers: { Authorization: `Bearer ${this.token}` },
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+
+      const json = (await res.json()) as {
+        display_phone_number?: string;
+        verified_name?: string;
+      };
+      return parseBusinessNumber(json.display_phone_number, json.verified_name?.trim() || null);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /**

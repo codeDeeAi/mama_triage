@@ -37,7 +37,17 @@ const silentLogger = {
   error: () => undefined, debug: () => undefined,
 } as never;
 
-function app(channels: Array<'whatsapp' | 'telegram'>, whatsappTransport?: unknown) {
+const WA_NUMBER = {
+  display: '+1 555-653-9335',
+  dialable: '15556539335',
+  verifiedName: 'MamaTriage',
+};
+
+function app(
+  channels: Array<'whatsapp' | 'telegram'>,
+  whatsappTransport?: unknown,
+  whatsappNumber?: typeof WA_NUMBER,
+) {
   return createApp({
     appSecret: 's', verifyToken: 'v', whatsappEnabled: false,
     events: { async claim() { return true; }, async markProcessed() {}, async markFailed() {} } as never,
@@ -53,6 +63,7 @@ function app(channels: Array<'whatsapp' | 'telegram'>, whatsappTransport?: unkno
       telegramBotUsername: 'Nne_m_BOT',
       studyName: 'the MIVA maternal health study',
       ...(whatsappTransport ? { whatsappTransport: whatsappTransport as never } : {}),
+      ...(whatsappNumber ? { whatsappNumber } : {}),
     },
   });
 }
@@ -176,6 +187,71 @@ describe('WhatsApp registration — phone required, hashed before storage', () =
     expect(res.status).toBe(200);
     expect(res.body.welcomeSent).toBe(false);
     expect(res.body.instructions).toMatch(/could not send/i);
+  });
+});
+
+describe('WhatsApp — telling her where to write when the welcome did not arrive', () => {
+  // The whole point of the fallback is that she writes to us first: her inbound message
+  // is what opens the 24-hour window an assessment needs. "Send a message to our number"
+  // without the number is a dead end, and it was one.
+  const failing = {
+    capabilities: { provider: 'meta-cloud-api' },
+    async sendTemplate() { throw new Error('Meta rejected the send'); },
+  };
+  const sending = {
+    capabilities: { provider: 'meta-cloud-api' },
+    async sendTemplate() { /* delivered */ },
+  };
+
+  maybe('names the number, and gives a link that opens a chat on it', async () => {
+    const res = await request(app(['whatsapp'], failing, WA_NUMBER))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Dee', channel: 'whatsapp', phone: '08011155566', consent: 'yes' });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('+1 555-653-9335');
+    // Pre-filled, so the tap that opens WhatsApp also writes the message.
+    expect(res.text).toContain('https://wa.me/15556539335?text=Hi');
+    expect(res.text).not.toMatch(/message to our number/i);
+  });
+
+  maybe('carries the number through the JSON API too', async () => {
+    const res = await request(app(['whatsapp'], failing, WA_NUMBER))
+      .post('/register/api')
+      .send({ displayName: 'Dee', channel: 'whatsapp', phone: '08011155577', consent: 'yes' });
+
+    expect(res.body.instructions).toContain('+1 555-653-9335');
+    expect(res.body.whatsappLink).toBe('https://wa.me/15556539335?text=Hi');
+  });
+
+  maybe('never says "our number" when it does not know the number', async () => {
+    // Meta was unreachable at boot. Saying "message our number" would send her looking
+    // for something the page cannot show her.
+    const res = await request(app(['whatsapp'], failing))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Dee', channel: 'whatsapp', phone: '08011155588', consent: 'yes' });
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toMatch(/our number to begin/i);
+    expect(res.text).toMatch(/cannot show you our number/i);
+    expect(res.text).toMatch(/You are registered/i);
+    expect(res.text).not.toContain('wa.me');
+  });
+
+  maybe('names the sender on the success path, so she knows who wrote', async () => {
+    const res = await request(app(['whatsapp'], sending, WA_NUMBER))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Dee', channel: 'whatsapp', phone: '08011155599', consent: 'yes' });
+
+    expect(res.text).toMatch(/look for our message, from \+1 555-653-9335/);
+    // No "write to us first" button: the welcome arrived, she only has to reply.
+    expect(res.text).not.toContain('wa.me');
   });
 });
 

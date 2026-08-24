@@ -32,6 +32,15 @@ export interface RegisterDeps {
   telegramBotUsername?: string;
   /** Used to send the welcome template on the WhatsApp path. */
   whatsappTransport?: MessageTransport;
+  /**
+   * The number Meta sends from, resolved at boot.
+   *
+   * Needed for one case: the welcome template did not send, and the fallback advice is
+   * for her to write to us first. "Send a message to our number" without the number is
+   * a dead end, so when this is absent the page says it cannot show the number rather
+   * than pretending it did.
+   */
+  whatsappNumber?: { display: string; dialable: string; verifiedName: string | null };
   /** Shown in the welcome message, e.g. "the MIVA maternal health study". */
   studyName?: string;
 }
@@ -308,6 +317,23 @@ async function register(
       }
     }
 
+    const number = deps.whatsappNumber;
+
+    // Three outcomes, three different next actions. The failure case is the one that
+    // used to lie: it told her to message a number the page never showed.
+    let instructions: string;
+    if (welcomeSent) {
+      instructions = 'Check WhatsApp for a message from us, and reply to begin.';
+    } else if (number) {
+      instructions =
+        `We could not send the welcome message. Send a WhatsApp message to ` +
+        `${number.display} to begin — you are registered either way.`;
+    } else {
+      instructions =
+        'We could not send the welcome message, and we cannot show you our number ' +
+        'right now. You are registered — please try again in a few minutes.';
+    }
+
     return {
       ok: true,
       result: {
@@ -316,9 +342,15 @@ async function register(
         registrationId: reg.id,
         smsReminders: Boolean(sms),
         welcomeSent,
-        instructions: welcomeSent
-          ? 'Check WhatsApp for a message from us, and reply to begin.'
-          : 'We could not send the welcome message. Send a WhatsApp message to our number to begin.',
+        instructions,
+        ...(number
+          ? {
+              whatsappNumber: number.display,
+              // Pre-filled so the tap that opens WhatsApp also writes the message. Her
+              // inbound is what opens the 24-hour window the assessment needs.
+              whatsappLink: `https://wa.me/${number.dialable}?text=${encodeURIComponent('Hi')}`,
+            }
+          : {}),
       },
     };
   }
