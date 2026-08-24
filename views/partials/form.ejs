@@ -1,142 +1,353 @@
-<div id="form-region" class="space-y-7">
-  <div>
-    <label class="label" for="displayName">
-      What should we call you?
-      <span class="hint">A first name or nickname is fine. We do not need your real name.</span>
-    </label>
-    <input class="field mt-2" type="text" id="displayName" name="displayName"
-           maxlength="80" autocomplete="given-name" required
-           value="<%= typeof values !== 'undefined' ? (values.displayName || '') : '' %>" />
-  </div>
-
-  <fieldset>
-    <legend class="label">Where would you like to chat?</legend>
-
-    <div class="mt-2 grid gap-3 sm:grid-cols-2">
-      <% if (channels.includes('telegram')) { %>
-      <label class="channel-option cursor-pointer rounded-xl border-2 border-ink-line bg-white p-4 transition hover:border-telegram has-[:checked]:border-telegram has-[:checked]:bg-sky-50">
-        <input type="radio" name="channel" value="telegram" class="sr-only peer" required />
-        <span class="flex items-center gap-2 font-semibold">
-          <span aria-hidden="true">✈️</span> Telegram
-        </span>
-        <span class="mt-1 block text-sm text-slate-600">
-          No phone number needed
-        </span>
-        <span class="mt-2 block text-xs font-medium text-telegram">
-          Most private option
-        </span>
-      </label>
-      <% } %>
-
-      <% if (channels.includes('whatsapp')) { %>
-      <label class="channel-option cursor-pointer rounded-xl border-2 border-ink-line bg-white p-4 transition hover:border-whatsapp has-[:checked]:border-whatsapp has-[:checked]:bg-green-50">
-        <input type="radio" name="channel" value="whatsapp" class="sr-only peer" required />
-        <span class="flex items-center gap-2 font-semibold">
-          <span aria-hidden="true">💬</span> WhatsApp
-        </span>
-        <span class="mt-1 block text-sm text-slate-600">
-          We will need your number
-        </span>
-      </label>
-      <% } %>
-    </div>
-  </fieldset>
+<%
+  /*
+   * Error lookup.
+   *
+   * The server returns issues keyed by field. Rendering each one next to the input it
+   * belongs to — rather than as an undifferentiated list at the bottom of the form —
+   * is the difference between "something is wrong" and "your phone number is wrong".
+   * The summary at the top stays, because on a long form the failing field can be off
+   * screen, but it now links to the field instead of merely naming it.
+   */
+  var errs = (typeof errors !== 'undefined' && errors) ? errors : [];
+  function errorFor(field) {
+    for (var i = 0; i < errs.length; i++) {
+      if (errs[i].field === field) return errs[i].message;
+    }
+    return null;
+  }
+  var vals = (typeof values !== 'undefined' && values) ? values : {};
+  /* Only one channel on offer means there is nothing to decide: pre-select it. */
+  var chosen = vals.channel || (channels.length === 1 ? channels[0] : '');
+  var language = vals.language || 'en';
+  var smsOn = vals.smsReminders === 'yes';
+  var nameErr = errorFor('displayName');
+  var channelErr = errorFor('channel');
+  var phoneErr = errorFor('phone');
+  var smsErr = errorFor('smsNumber');
+  var consentErr = errorFor('consent');
+  /* Every channel the system can speak, in the order we would recommend them. */
+  var supported = (typeof supportedChannels !== 'undefined' && supportedChannels)
+    ? supportedChannels : ['telegram', 'whatsapp'];
+%>
+<div id="form-region" class="space-y-4">
 
   <!--
-    The phone field is not merely hidden for Telegram — it is removed from the form,
-    so a number cannot be submitted on a channel that does not need one. The server
-    rejects it too; this is the visible half of the same rule.
+    Error summary. Focused and announced on arrival, so a screen-reader user and a sighted
+    user learn the same thing at the same moment.
   -->
-  <div id="phone-block" class="hidden">
-    <label class="label" for="phone">
-      Your WhatsApp number
-      <span class="hint">
-        Only needed for WhatsApp, so we can message you. It is scrambled before it is
-        stored and never kept in readable form.
-      </span>
-    </label>
-    <input class="field mt-2" type="tel" id="phone" name="phone" disabled
-           inputmode="tel" autocomplete="tel" placeholder="0801 234 5678" />
-  </div>
-
-  <!--
-    SMS is offered as an ADD-ON, not a chat option. The provider has no inbound SMS
-    webhook, so a reply would never reach the server — offering "chat by SMS" would
-    promise something that silently fails at the moment someone needs it. Reminders are
-    one-way, so SMS does that perfectly, and it is the only channel that works on a
-    feature phone with no data.
-  -->
-  <div class="rounded-xl border-2 border-dashed border-ink-line bg-slate-50 p-4">
-    <label class="flex cursor-pointer items-start gap-3">
-      <input type="checkbox" name="smsReminders" value="yes" id="smsReminders"
-             class="mt-1 h-5 w-5 shrink-0 rounded border-2 border-slate-400
-                    text-brand focus:ring-2 focus:ring-brand/30" />
-      <span class="text-sm leading-relaxed text-slate-700">
-        <strong class="block text-ink">
-          Also text me reminders <span class="font-normal text-slate-500">(optional)</span>
-        </strong>
-        If we advise you to see a health worker, we check back after a day or two.
-        A text message reaches you even with no internet.
-        <span class="mt-1.5 block text-xs text-slate-500">
-          You cannot chat with us by text — only receive reminders. To do this we keep
-          your number so we can text you, and you can ask us to delete it at any time.
-        </span>
-      </span>
-    </label>
-
-    <div id="sms-number-block" class="mt-3 hidden">
-      <label class="label" for="smsNumber">Number for reminders</label>
-      <input class="field mt-2" type="tel" id="smsNumber" name="smsNumber" disabled
-             inputmode="tel" autocomplete="tel" placeholder="0801 234 5678" />
-    </div>
-  </div>
-
-  <div>
-    <label class="label" for="language">Which language do you prefer?</label>
-    <select class="field mt-2" id="language" name="language">
-      <option value="en">English</option>
-      <option value="pcm">Nigerian Pidgin</option>
-    </select>
-  </div>
-
-  <!--
-    Unchecked by default and required. A pre-ticked box is not consent, and for research
-    involving health information it would not survive an ethics review.
-  -->
-  <div class="rounded-xl border-2 border-ink-line bg-white p-4">
-    <label class="flex cursor-pointer items-start gap-3">
-      <input type="checkbox" name="consent" value="yes" required
-             class="mt-1 h-5 w-5 shrink-0 rounded border-2 border-slate-400
-                    text-brand focus:ring-2 focus:ring-brand/30" />
-      <span class="text-sm leading-relaxed text-slate-700">
-        I understand that MamaTriage is a <strong>research prototype</strong>, that it is
-        <strong>not a doctor</strong> and does not give diagnoses, and that I should seek
-        care if I am worried whatever it says.
-        <br class="mb-1.5" />
-        I agree to the
-        <a href="/terms" target="_blank" class="font-medium text-brand underline">terms of use</a>
-        and the
-        <a href="/privacy" target="_blank" class="font-medium text-brand underline">privacy notice</a>,
-        and to being contacted on the channel I chose.
-      </span>
-    </label>
-  </div>
-
-  <% if (typeof errors !== 'undefined' && errors.length) { %>
-    <div class="rounded-xl border border-red-200 bg-red-50 p-4">
-      <ul class="space-y-1 text-sm text-red-900">
-        <% errors.forEach(function (e) { %><li><%= e.message %></li><% }); %>
+  <% if (errs.length) { %>
+    <div id="error-summary" tabindex="-1" role="alert"
+         class="rounded-2xl border-2 border-urgent bg-red-50 p-4">
+      <p class="flex items-center gap-2 font-bold text-red-900">
+        <span aria-hidden="true">⚠️</span>
+        <%= errs.length === 1 ? 'One thing needs fixing' : errs.length + ' things need fixing' %>
+      </p>
+      <ul class="mt-2 space-y-1 text-sm text-red-900">
+        <% errs.forEach(function (e) { %>
+          <li>
+            <a href="#<%= e.field === 'consent' ? 'consent' : e.field %>"
+               class="underline decoration-red-400 underline-offset-2 hover:decoration-red-700"><%= e.message %></a>
+          </li>
+        <% }); %>
       </ul>
     </div>
   <% } %>
 
-  <button type="submit" class="btn-primary w-full">
-    <span class="htmx-indicator-hide">Continue</span>
-    <span id="spinner" class="htmx-indicator">Please wait…</span>
-  </button>
+  <!-- ===== 1. Name and language ===================================================== -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num" aria-hidden="true">1</span>
+      <div class="min-w-0 flex-1">
+        <h2 class="step-title">About you</h2>
+        <p class="step-sub">Two quick things. We do not need your real name.</p>
 
-  <p class="text-center text-xs text-slate-500">
-    By continuing you agree to be contacted on the channel you chose. You will be
-    asked separately before any conversation is stored.
-  </p>
+        <div class="mt-4 space-y-4">
+          <div>
+            <label class="label" for="displayName">
+              What should we call you?
+              <span class="hint">A first name or nickname is fine.</span>
+            </label>
+            <input class="field mt-2 <%= nameErr ? 'field-invalid' : '' %>"
+                   type="text" id="displayName" name="displayName"
+                   maxlength="80" autocomplete="given-name" required
+                   <%- nameErr ? 'aria-invalid="true" aria-describedby="displayName-error"' : '' %>
+                   placeholder="Amina"
+                   value="<%= vals.displayName || '' %>" />
+            <% if (nameErr) { %>
+              <p class="field-error" id="displayName-error">
+                <span aria-hidden="true">•</span><span><%= nameErr %></span>
+              </p>
+            <% } %>
+          </div>
+
+          <div>
+            <label class="label" for="language">Which language do you prefer?</label>
+            <select class="field mt-2" id="language" name="language">
+              <option value="en" <%= language === 'en' ? 'selected' : '' %>>English</option>
+              <option value="pcm" <%= language === 'pcm' ? 'selected' : '' %>>Nigerian Pidgin</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 2. Channel ==============================================================
+    The one decision on this form that a mother cannot answer from memory, so it gets
+    the most room. Each option states what it costs her — a phone number or nothing —
+    because that is the actual difference between them, and it is the thing the privacy
+    notice is about. Channels this deployment cannot serve are shown greyed rather than
+    omitted: a missing option reads as "they don't do WhatsApp", which is not true.
+  ================================================================================== -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num" aria-hidden="true">2</span>
+      <div class="min-w-0 flex-1">
+        <fieldset>
+          <legend class="step-title">Where would you like to chat?</legend>
+          <p class="step-sub">
+            You will have the conversation in an app you already use. There is nothing to
+            download.
+          </p>
+
+          <% if (channelErr) { %>
+            <p class="field-error" id="channel-error">
+              <span aria-hidden="true">•</span><span><%= channelErr %></span>
+            </p>
+          <% } %>
+
+          <div class="mt-4 space-y-3" id="channel">
+
+            <% supported.forEach(function (ch) { %>
+              <% var live = channels.includes(ch); %>
+              <% var meta = ch === 'telegram'
+                   ? { name: 'Telegram', icon: '✈️', accent: 'telegram',
+                       tagline: 'No phone number needed.',
+                       cost: 'We ask for nothing but a name.',
+                       badge: 'Most private' }
+                   : { name: 'WhatsApp', icon: '💬', accent: 'whatsapp',
+                       tagline: 'Chat on the app you already have.',
+                       cost: 'We will need your phone number.',
+                       badge: 'Most familiar' }; %>
+
+              <% if (live) { %>
+                <div class="choice group <%= ch === 'telegram'
+                       ? 'has-[:checked]:border-telegram has-[:checked]:bg-sky-50/60'
+                       : 'has-[:checked]:border-whatsapp has-[:checked]:bg-green-50/60' %>">
+                  <label class="choice-hit" for="channel-<%= ch %>">
+                    <input type="radio" name="channel" value="<%= ch %>" id="channel-<%= ch %>"
+                           class="sr-only" required
+                           <%= chosen === ch ? 'checked' : '' %>
+                           <%- channelErr ? 'aria-describedby="channel-error"' : '' %> />
+
+                    <span class="choice-dot <%= ch === 'telegram'
+                            ? 'group-has-[:checked]:border-telegram group-has-[:checked]:bg-telegram'
+                            : 'group-has-[:checked]:border-whatsapp group-has-[:checked]:bg-whatsapp' %>"
+                          aria-hidden="true">
+                      <span class="choice-dot-inner group-has-[:checked]:scale-100"></span>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                      <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span class="text-lg" aria-hidden="true"><%= meta.icon %></span>
+                        <span class="text-base font-bold text-ink"><%= meta.name %></span>
+                        <span class="badge <%= ch === 'telegram'
+                                ? 'bg-sky-100 text-sky-800' : 'bg-green-100 text-green-800' %>">
+                          <%= meta.badge %>
+                        </span>
+                      </span>
+                      <span class="mt-1 block text-sm text-slate-600"><%= meta.tagline %></span>
+                      <span class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <span aria-hidden="true"><%= ch === 'telegram' ? '🔒' : '📱' %></span>
+                        <%= meta.cost %>
+                      </span>
+                    </span>
+                  </label>
+
+                  <% if (ch === 'whatsapp') { %>
+                    <!--
+                      The number is asked for INSIDE the WhatsApp card, revealed when the
+                      card is chosen. It used to sit in its own block further down the
+                      page, which made it look like a separate question rather than the
+                      consequence of the choice just made.
+
+                      Toggling `disabled` rather than only hiding: a disabled input is not
+                      submitted at all, so a number cannot reach the server on the Telegram
+                      path even if the field was filled in before switching. The server
+                      enforces the same rule; this is the visible half of it.
+                    -->
+                    <div id="phone-block"
+                         class="border-t-2 border-green-100 bg-green-50/40 px-4 py-4 <%= chosen === 'whatsapp' ? 'animate-reveal' : 'hidden' %>">
+                      <label class="label" for="phone">
+                        Your WhatsApp number
+                        <span class="hint">
+                          So we can message you there. It is scrambled before it is stored
+                          and never kept in readable form.
+                        </span>
+                      </label>
+                      <input class="field mt-2 <%= phoneErr ? 'field-invalid' : '' %>"
+                             type="tel" id="phone" name="phone"
+                             <%= chosen === 'whatsapp' ? 'required' : 'disabled' %>
+                             inputmode="tel" autocomplete="tel" placeholder="0801 234 5678"
+                             <%- phoneErr ? 'aria-invalid="true" aria-describedby="phone-error"' : '' %>
+                             value="<%= chosen === 'whatsapp' ? (vals.phone || '') : '' %>" />
+                      <% if (phoneErr) { %>
+                        <p class="field-error" id="phone-error">
+                          <span aria-hidden="true">•</span><span><%= phoneErr %></span>
+                        </p>
+                      <% } %>
+                    </div>
+                  <% } %>
+                </div>
+
+              <% } else { %>
+                <!-- Not configured on this deployment. Rendered without a radio input, so
+                     it cannot be selected and cannot be posted. -->
+                <div class="choice-disabled">
+                  <span class="choice-dot border-slate-200 bg-slate-100" aria-hidden="true"></span>
+                  <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="text-lg opacity-50" aria-hidden="true"><%= meta.icon %></span>
+                      <span class="text-base font-bold text-slate-500"><%= meta.name %></span>
+                      <span class="badge bg-slate-200 text-slate-600">Not connected yet</span>
+                    </span>
+                    <span class="mt-1 block text-sm text-slate-500">
+                      <% if (ch === 'whatsapp') { %>
+                        This deployment has no WhatsApp Business number connected yet.
+                        <%= channels.includes('telegram') ? 'Telegram works today and needs no phone number.' : '' %>
+                      <% } else { %>
+                        This deployment has no Telegram bot connected yet.
+                      <% } %>
+                    </span>
+                  </span>
+                </div>
+              <% } %>
+            <% }); %>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. SMS reminders ========================================================
+    SMS is offered as an ADD-ON, not a chat option. The provider has no inbound SMS
+    webhook, so a reply would never reach the server — offering "chat by SMS" would
+    promise something that silently fails at the moment someone needs it. Reminders are
+    one-way, so SMS does that perfectly, and it is the only channel that works on a
+    feature phone with no data. It sits in its own numbered step, clearly after the
+    channel choice, so it cannot be mistaken for a third channel.
+  ================================================================================== -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num" aria-hidden="true">3</span>
+      <div class="min-w-0 flex-1">
+        <h2 class="step-title">
+          Text reminders
+          <span class="ml-1 text-sm font-normal text-slate-500">optional</span>
+        </h2>
+        <p class="step-sub">Skip this if you would rather not give a number.</p>
+
+        <div class="choice group mt-4">
+          <label class="choice-hit" for="smsReminders">
+            <input type="checkbox" name="smsReminders" value="yes" id="smsReminders"
+                   class="sr-only" <%= smsOn ? 'checked' : '' %> />
+            <span class="choice-check group-has-[:checked]:border-brand group-has-[:checked]:bg-brand"
+                  aria-hidden="true">
+              <svg viewBox="0 0 12 12" class="h-3 w-3 scale-0 transition-transform group-has-[:checked]:scale-100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1.5 6.5 4.5 9.5 10.5 2.5" />
+              </svg>
+            </span>
+            <span class="min-w-0 flex-1 text-sm leading-relaxed text-slate-700">
+              <strong class="block text-base text-ink">Also text me reminders</strong>
+              If we advise you to see a health worker, we check back after a day or two.
+              A text message reaches you even with no internet.
+              <span class="mt-1.5 block text-xs text-slate-500">
+                You cannot chat with us by text — only receive reminders. To do this we keep
+                your number so we can text you, and you can ask us to delete it at any time.
+              </span>
+            </span>
+          </label>
+
+          <div id="sms-number-block"
+               class="border-t-2 border-slate-100 bg-slate-50/60 px-4 py-4 <%= smsOn ? 'animate-reveal' : 'hidden' %>">
+            <label class="label" for="smsNumber">Number for reminders</label>
+            <input class="field mt-2 <%= smsErr ? 'field-invalid' : '' %>"
+                   type="tel" id="smsNumber" name="smsNumber"
+                   <%= smsOn ? 'required' : 'disabled' %>
+                   inputmode="tel" autocomplete="tel" placeholder="0801 234 5678"
+                   <%- smsErr ? 'aria-invalid="true" aria-describedby="smsNumber-error"' : '' %>
+                   value="<%= smsOn ? (vals.smsNumber || '') : '' %>" />
+            <% if (smsErr) { %>
+              <p class="field-error" id="smsNumber-error">
+                <span aria-hidden="true">•</span><span><%= smsErr %></span>
+              </p>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. Consent =============================================================
+    Unchecked by default and required. A pre-ticked box is not consent, and for research
+    involving health information it would not survive an ethics review.
+  ================================================================================== -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num" aria-hidden="true">4</span>
+      <div class="min-w-0 flex-1">
+        <h2 class="step-title">Agree and start</h2>
+        <p class="step-sub">Please read this bit — it is short and it matters.</p>
+
+        <div class="choice group mt-4 <%= consentErr ? 'border-urgent' : '' %>">
+          <label class="choice-hit" for="consent">
+            <input type="checkbox" name="consent" value="yes" id="consent" required
+                   class="sr-only"
+                   <%- consentErr ? 'aria-invalid="true" aria-describedby="consent-error"' : '' %> />
+            <span class="choice-check group-has-[:checked]:border-brand group-has-[:checked]:bg-brand"
+                  aria-hidden="true">
+              <svg viewBox="0 0 12 12" class="h-3 w-3 scale-0 transition-transform group-has-[:checked]:scale-100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1.5 6.5 4.5 9.5 10.5 2.5" />
+              </svg>
+            </span>
+            <span class="min-w-0 flex-1 text-sm leading-relaxed text-slate-700">
+              I understand that MamaTriage is a <strong>research prototype</strong>, that it is
+              <strong>not a doctor</strong> and does not give diagnoses, and that I should seek
+              care if I am worried whatever it says.
+              <span class="mt-2 block">
+                I agree to the
+                <a href="/terms" target="_blank" rel="noopener" class="link">terms of use</a>
+                and the
+                <a href="/privacy" target="_blank" rel="noopener" class="link">privacy notice</a>,
+                and to being contacted on the channel I chose.
+              </span>
+            </span>
+          </label>
+        </div>
+        <% if (consentErr) { %>
+          <p class="field-error" id="consent-error">
+            <span aria-hidden="true">•</span><span><%= consentErr %></span>
+          </p>
+        <% } %>
+      </div>
+    </div>
+  </section>
+
+  <div class="pt-1">
+    <button type="submit" class="btn-primary btn-block">
+      <span class="htmx-indicator-hide">Continue</span>
+      <span class="htmx-indicator items-center gap-2">
+        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.25" />
+          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+        </svg>
+        Please wait…
+      </span>
+    </button>
+
+    <p class="mt-3 text-center text-xs leading-relaxed text-slate-500">
+      You will be asked separately before any conversation is stored.
+      You can stop at any time.
+    </p>
+  </div>
 </div>

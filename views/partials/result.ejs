@@ -1,52 +1,86 @@
-<div id="form-region" class="space-y-6">
+<div id="form-region" class="space-y-4">
   <% if (channel === 'telegram') { %>
-    <div class="card border-telegram/30 bg-sky-50 text-center">
-      <div class="text-4xl" aria-hidden="true">✈️</div>
-      <h2 class="mt-3 text-xl font-bold">Almost there, <%= displayName %>.</h2>
-      <p class="mt-2 text-slate-700"><%= instructions %></p>
 
-      <a href="<%= deepLink %>"
-         class="btn mt-5 w-full bg-telegram text-white hover:bg-sky-700 focus:ring-telegram/30">
-        Open Telegram
-      </a>
+    <div class="overflow-hidden rounded-2xl border-2 border-telegram/30 bg-white shadow-sm">
+      <div class="bg-sky-50 px-6 py-8 text-center">
+        <div class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-white text-4xl shadow-sm" aria-hidden="true">✈️</div>
+        <h2 class="mt-4 text-2xl font-bold tracking-tight">Almost there, <%= displayName %>.</h2>
+        <p class="mx-auto mt-2 max-w-sm leading-relaxed text-slate-700"><%= instructions %></p>
 
-      <p class="mt-4 text-sm text-slate-600">
-        If the button does not work, open Telegram, search for
-        <strong>@<%= botUsername %></strong>, and press START.
-      </p>
+        <a href="<%= deepLink %>"
+           class="btn btn-block mt-6 bg-telegram text-white shadow-sm hover:bg-sky-700 focus-visible:ring-telegram/40">
+          <span aria-hidden="true">✈️</span> Open Telegram
+        </a>
+      </div>
 
-      <p class="mt-4 border-t border-sky-200 pt-4 text-xs text-slate-500">
+      <div class="border-t border-sky-100 px-6 py-5">
+        <p class="text-sm font-semibold text-ink">If the button does not work</p>
+        <ol class="mt-2 space-y-1.5 text-sm text-slate-600">
+          <li>1. Open Telegram on your phone.</li>
+          <li>2. Search for <strong class="select-all font-mono text-ink">@<%= botUsername %></strong>.</li>
+          <li>3. Press <strong>START</strong>.</li>
+        </ol>
+      </div>
+
+      <p class="border-t border-sky-100 bg-sky-50/60 px-6 py-4 text-xs leading-relaxed text-slate-600">
+        <span aria-hidden="true">🔒</span>
         We have not stored any phone number or contact detail. Your chat is linked only
         when you open the bot.
       </p>
     </div>
-  <% } else { %>
-    <div class="card <%= welcomeSent ? 'border-whatsapp/30 bg-green-50' : 'border-amber-200 bg-amber-50' %> text-center">
-      <div class="text-4xl" aria-hidden="true"><%= welcomeSent ? '✅' : '⚠️' %></div>
-      <h2 class="mt-3 text-xl font-bold">Thank you, <%= displayName %>.</h2>
-      <p class="mt-2 text-slate-700"><%= instructions %></p>
 
-      <p class="mt-4 border-t <%= welcomeSent ? 'border-green-200' : 'border-amber-200' %> pt-4 text-xs text-slate-500">
+  <% } else { %>
+
+    <div class="overflow-hidden rounded-2xl border-2 <%= welcomeSent ? 'border-whatsapp/30' : 'border-amber-300' %> bg-white shadow-sm">
+      <div class="<%= welcomeSent ? 'bg-green-50' : 'bg-amber-50' %> px-6 py-8 text-center">
+        <div class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-white text-4xl shadow-sm" aria-hidden="true"><%= welcomeSent ? '✅' : '⚠️' %></div>
+        <h2 class="mt-4 text-2xl font-bold tracking-tight">Thank you, <%= displayName %>.</h2>
+        <p class="mx-auto mt-2 max-w-sm leading-relaxed text-slate-700"><%= instructions %></p>
+      </div>
+
+      <div class="border-t <%= welcomeSent ? 'border-green-100' : 'border-amber-200' %> px-6 py-5">
+        <p class="text-sm font-semibold text-ink">What happens next</p>
+        <ol class="mt-2 space-y-1.5 text-sm text-slate-600">
+          <% if (welcomeSent) { %>
+            <li>1. Open WhatsApp and look for our message.</li>
+            <li>2. Reply to it — anything at all — to begin.</li>
+            <li>3. We will ask about you, or about your baby.</li>
+          <% } else { %>
+            <li>1. Open WhatsApp and send a message to our number.</li>
+            <li>2. We will reply and begin from there.</li>
+          <% } %>
+        </ol>
+      </div>
+
+      <p class="border-t <%= welcomeSent ? 'border-green-100 bg-green-50/60' : 'border-amber-200 bg-amber-50/60' %> px-6 py-4 text-xs leading-relaxed text-slate-600">
+        <span aria-hidden="true">🔒</span>
         Your number was scrambled before it was stored. It is not kept in readable form.
       </p>
     </div>
+
   <% } %>
 
   <% if (typeof smsReminders !== 'undefined' && smsReminders) { %>
-    <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-      <strong class="text-ink">Text reminders are on.</strong>
-      If we advise you to see a health worker, we will also text you after a day or two.
-      You cannot reply by text — come back to
-      <%= channel === 'telegram' ? 'Telegram' : 'WhatsApp' %> to chat with us.
+    <div class="note-muted flex items-start gap-3">
+      <span class="text-lg" aria-hidden="true">📩</span>
+      <span>
+        <strong class="block text-ink">Text reminders are on.</strong>
+        If we advise you to see a health worker, we will also text you after a day or two.
+        You cannot reply by text — come back to
+        <%= channel === 'telegram' ? 'Telegram' : 'WhatsApp' %> to chat with us.
+      </span>
     </div>
   <% } %>
 
-  <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-    <strong>Remember:</strong> this is a research prototype, not a doctor. If you think
-    something is an emergency, go to your nearest health facility straight away.
+  <div class="note-danger flex items-start gap-3">
+    <span class="text-lg" aria-hidden="true">🚨</span>
+    <span>
+      <strong>Remember:</strong> this is a research prototype, not a doctor. If you think
+      something is an emergency, go to your nearest health facility straight away.
+    </span>
   </div>
 
-  <p class="text-center">
-    <a href="/" class="text-sm font-medium text-brand underline">Back to the home page</a>
+  <p class="pt-2 text-center">
+    <a href="/" class="link text-sm">Back to the home page</a>
   </p>
 </div>

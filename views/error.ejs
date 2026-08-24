@@ -1,9 +1,14 @@
-<section class="mx-auto max-w-readable px-5 py-20 text-center">
-  <div class="text-5xl" aria-hidden="true">🤱</div>
-  <h1 class="mt-4 text-2xl font-bold"><%= heading %></h1>
-  <p class="mt-2 text-slate-600"><%= message %></p>
-  <a href="/" class="btn-primary mt-8">Back to the home page</a>
-  <p class="mt-8 text-sm text-slate-500">
+<section class="mx-auto max-w-readable px-5 py-16 text-center sm:py-24">
+  <div class="mx-auto grid h-20 w-20 place-items-center rounded-full bg-white text-5xl shadow-sm" aria-hidden="true">🤱</div>
+  <h1 class="mt-6 text-2xl font-bold tracking-tight sm:text-3xl"><%= heading %></h1>
+  <p class="mx-auto mt-3 max-w-sm leading-relaxed text-slate-600"><%= message %></p>
+
+  <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+    <a href="/" class="btn-primary">Back to the home page</a>
+    <a href="/register" class="btn-ghost">Register</a>
+  </div>
+
+  <p class="mt-10 text-sm leading-relaxed text-slate-500">
     If you or your baby need help now, go to your nearest health facility.
   </p>
 </section>

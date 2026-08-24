@@ -1,65 +1,141 @@
-<section class="mx-auto max-w-readable px-5 py-12">
-  <h1 class="text-3xl font-bold tracking-tight">Join MamaTriage</h1>
-  <p class="mt-2 text-slate-600">
+<section class="mx-auto max-w-readable px-5 py-10 sm:py-12">
+
+  <a href="/" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-brand">
+    <span aria-hidden="true">←</span> Back
+  </a>
+
+  <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Join MamaTriage</h1>
+  <p class="mt-2 text-lg leading-relaxed text-slate-600">
     Check danger signs for you and your baby in the first year after birth.
   </p>
 
-  <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+  <p class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+    <span class="inline-flex items-center gap-1.5"><span aria-hidden="true">⏱️</span> About a minute</span>
+    <span class="inline-flex items-center gap-1.5"><span aria-hidden="true">🆓</span> Free to use</span>
+    <span class="inline-flex items-center gap-1.5"><span aria-hidden="true">🔒</span> No real name needed</span>
+  </p>
+
+  <div class="note-warn mt-6">
     <strong>This is a research prototype.</strong> It is not a doctor and does not give
     diagnoses. If you think something is an emergency, go to your nearest health facility
     straight away.
   </div>
 
   <% if (channels.length === 0) { %>
-    <div class="card mt-8 border-red-200 bg-red-50">
-      <p class="font-semibold text-red-900">Registration is not available right now.</p>
-      <p class="mt-1 text-sm text-red-800">
-        No messaging channel is configured on this deployment.
+    <div class="card mt-8 border-2 border-red-200 bg-red-50 text-center">
+      <div class="text-4xl" aria-hidden="true">🔌</div>
+      <p class="mt-3 text-lg font-bold text-red-900">Registration is not available right now.</p>
+      <p class="mt-2 text-sm leading-relaxed text-red-800">
+        No messaging channel is configured on this deployment, so there is nowhere for us
+        to reply to you. Please try again later.
       </p>
+      <a href="/" class="btn-ghost mt-6">Back to the home page</a>
     </div>
   <% } else { %>
 
   <!--
     htmx posts the form and swaps in a server-rendered result, so the success and error
     states are the same templates the server already owns. No duplicated rendering logic
-    in the browser.
+    in the browser. The form works without JavaScript too — a plain POST re-renders the
+    whole page from the same partial.
   -->
   <form id="register-form"
-        class="mt-8 space-y-7"
+        class="mt-8"
         hx-post="/register"
         hx-target="#form-region"
         hx-swap="outerHTML"
-        hx-indicator="#spinner">
+        hx-indicator="#register-form"
+        hx-disabled-elt="find button[type='submit']">
 
     <%- include('partials/form') %>
   </form>
   <% } %>
 </section>
 
+<noscript>
+  <style>
+    /*
+     * Without JavaScript nothing can reveal the conditional fields, so they are shown
+     * from the start. The server still refuses a number on the Telegram path, so the
+     * privacy guarantee does not depend on the browser.
+     */
+    #phone-block,
+    #sms-number-block { display: block !important; }
+  </style>
+</noscript>
+
 <script>
-  // Toggling `disabled` rather than just hiding: a disabled input is not submitted at
-  // all, so the phone number cannot reach the server on the Telegram path even if the
-  // field was filled in before switching channel.
-  document.addEventListener('change', function (e) {
-    if (e.target.name === 'channel') {
-      var block = document.getElementById('phone-block');
-      var input = document.getElementById('phone');
-      var isWhatsApp = e.target.value === 'whatsapp';
-      block.classList.toggle('hidden', !isWhatsApp);
-      input.disabled = !isWhatsApp;
-      input.required = isWhatsApp;
-      if (!isWhatsApp) input.value = '';
+  (function () {
+    /*
+     * Two conditional fields, one rule: a field that does not apply is DISABLED, not
+     * merely hidden. A disabled input is not submitted at all, so a phone number cannot
+     * reach the server on the Telegram path and an unrequested number cannot be stored,
+     * even if the field was filled in before the choice changed.
+     *
+     * Delegated from `document` so it keeps working after htmx swaps the form region.
+     */
+    function toggle(blockId, inputId, on) {
+      var block = document.getElementById(blockId);
+      var input = document.getElementById(inputId);
+      if (!block || !input) return;
+
+      block.classList.toggle('hidden', !on);
+      if (on) block.classList.add('animate-reveal');
+      input.disabled = !on;
+      input.required = on;
+      if (!on) {
+        input.value = '';
+        input.classList.remove('field-invalid');
+      }
     }
 
-    if (e.target.name === 'smsReminders') {
-      // Same rule as the WhatsApp number: a disabled input is not submitted at all, so
-      // no number reaches the server unless she actually asked for reminders.
-      var smsBlock = document.getElementById('sms-number-block');
-      var smsInput = document.getElementById('smsNumber');
-      smsBlock.classList.toggle('hidden', !e.target.checked);
-      smsInput.disabled = !e.target.checked;
-      smsInput.required = e.target.checked;
-      if (!e.target.checked) smsInput.value = '';
-    }
-  });
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t || !t.name) return;
+
+      if (t.name === 'channel') {
+        toggle('phone-block', 'phone', t.value === 'whatsapp');
+        // Moving the caret straight to the number saves a tap on the one path that
+        // needs a second answer.
+        if (t.value === 'whatsapp') {
+          var phone = document.getElementById('phone');
+          if (phone && !phone.value) phone.focus({ preventScroll: false });
+        }
+      }
+
+      if (t.name === 'smsReminders') {
+        toggle('sms-number-block', 'smsNumber', t.checked);
+      }
+    });
+
+    /*
+     * A radio inside a card is operated with the arrow keys once focused, but people
+     * reach for Space and Enter on something that looks like a button. Both select it.
+     */
+    document.addEventListener('keydown', function (e) {
+      var t = e.target;
+      if (!t || t.type !== 'radio' || t.name !== 'channel') return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (!t.checked) {
+          t.checked = true;
+          t.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+
+    /*
+     * After the server sends the form back with errors, move focus to the summary and
+     * scroll it into view. Without this the page looks unchanged and the mother is left
+     * pressing Continue again on a form that will fail the same way.
+     */
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.detail.target && evt.detail.target.id !== 'form-region') return;
+      var summary = document.getElementById('error-summary');
+      var target = summary || document.getElementById('form-region');
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (summary) summary.focus();
+    });
+  })();
 </script>

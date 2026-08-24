@@ -15,7 +15,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 
 ## Status
 
-**725 tests.** Typecheck, build and Docker image all clean.
+**1,000 tests.** Typecheck, build and Docker image all clean.
 
 | Component | State |
 |---|---|
@@ -43,7 +43,7 @@ Adeola Bada (2024/C/MIT/0127) · Supervisor: Prof. Emmanuel Mkpojiogu
 | **Clinical reviewer sign-off** | 12 of 20 rules are traced to published guidelines; **8 maternal rules carry a SIMULATED review** — the author standing in for a clinician. Every generated report names them and marks derived figures provisional. See [`docs/requirements/red-flag-register.md`](docs/requirements/red-flag-register.md) — the sign-off pack. |
 | **FMOH BEmONC / newborn-care guidelines** | Not publicly available; the PPH guideline is in, the rest of the maternal rules have no source document. See [`knowledge/SOURCES.md`](knowledge/SOURCES.md). |
 | **Scenario bank adjudication** | 65 scenarios committed. Neonatal golds are WHO-traced; the 29 maternal golds are marked `PENDING CLINICAL ADJUDICATION`. |
-| **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: no inbound WhatsApp webhook, and pre-approved templates only, never free text. Meta's Cloud API is the working WhatsApp path. **Telegram is now supported and needs no approval at all** — see below. |
+| **A WhatsApp provider with two-way messaging** | KudiSMS cannot host this: no inbound WhatsApp webhook, and pre-approved templates only, never free text. Meta's Cloud API is the working WhatsApp path — setup walkthrough in [`docs/whatsapp-setup.md`](docs/whatsapp-setup.md). **Telegram is now supported and needs no approval at all** — see below. |
 
 Full build plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
 Hazards and residual risk: [`docs/safety/clinical-safety-case.md`](docs/safety/clinical-safety-case.md).
@@ -68,6 +68,14 @@ orchestrator, the safety layer or the renderer: every channel implements one
 `assertTransportUsable()` refuses to start on a channel lacking inbound or free-text
 outbound, rather than presenting a working-looking service that silently drops every
 message a mother sends.
+
+`/register` names **every** channel the codebase can speak, not only the ones this
+deployment has credentials for. A channel that is supported but not configured is drawn
+greyed, with the reason, and carries no radio input — so it cannot be selected or posted,
+but a mother is not left to infer from a missing option that the service does not do
+WhatsApp. Filling in the four `WHATSAPP_*` variables is the whole of what turns that card
+live; nothing else changes. When only one channel is configured it is pre-selected, since
+one option is not a decision.
 
 ## Architecture in one paragraph
 

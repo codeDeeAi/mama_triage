@@ -2,24 +2,196 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Base layer.
+ *
+ * The audience is a mother on a small Android handset, often one-handed, often on a
+ * slow connection. Everything below optimises for that: large touch targets, high
+ * contrast, no layout that depends on hover, and no animation for anyone who has asked
+ * their device not to animate.
+ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  /* iOS zooms the viewport when a focused input is under 16px. Never let that happen. */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+
+  /* A visible keyboard focus ring everywhere, including on elements whose own focus
+     styles are handled by a wrapper (the channel cards hide their radio input). */
+  :focus-visible {
+    @apply outline-none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 @layer components {
-  /* Touch targets sized for a mother using one hand on a small phone. */
+  /* ---- buttons -------------------------------------------------------------------
+     Touch targets sized for a mother using one hand on a small phone. */
   .btn {
-    @apply inline-flex items-center justify-center rounded-xl px-6 py-4 text-base
-           font-semibold transition focus:outline-none focus:ring-4;
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-xl px-6
+           py-3.5 text-base font-semibold leading-tight transition
+           focus-visible:outline-none focus-visible:ring-4
+           disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-dark focus:ring-brand/30;
+    @apply btn bg-brand text-white shadow-sm hover:bg-brand-dark hover:shadow
+           active:bg-brand-dark focus-visible:ring-brand/30;
   }
   .btn-ghost {
-    @apply btn border-2 border-ink-line bg-white text-ink hover:border-brand;
+    @apply btn border-2 border-ink-line/25 bg-white text-ink hover:border-brand
+           hover:text-brand focus-visible:ring-brand/25;
   }
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* ---- form fields ---------------------------------------------------------------- */
   .field {
-    @apply w-full rounded-xl border-2 border-ink-line bg-white px-4 py-3.5 text-base
-           text-ink placeholder:text-slate-400 focus:border-brand focus:outline-none
-           focus:ring-4 focus:ring-brand/20;
+    @apply w-full rounded-xl border-2 border-ink-line/25 bg-white px-4 py-3.5 text-base
+           text-ink transition placeholder:text-slate-400
+           hover:border-ink-line/40
+           focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/20;
   }
-  .label { @apply block text-sm font-semibold text-ink; }
-  .hint  { @apply mt-1 block text-sm font-normal text-slate-500; }
-  .card  { @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm; }
+  /* Never colour alone: the field turns red AND an error message is rendered beneath it
+     and announced, because a red border says nothing to a screen reader. */
+  .field-invalid {
+    @apply border-urgent bg-red-50/40 focus:border-urgent focus:ring-urgent/20;
+  }
+  .label {
+    @apply block text-base font-semibold text-ink;
+  }
+  .hint {
+    @apply mt-1 block text-sm font-normal leading-relaxed text-slate-500;
+  }
+  .field-error {
+    @apply mt-2 flex items-start gap-1.5 text-sm font-medium text-urgent;
+  }
+
+  /* ---- surfaces -------------------------------------------------------------------- */
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+  }
+  .note {
+    @apply rounded-xl border p-4 text-sm leading-relaxed;
+  }
+  .note-warn {
+    @apply note border-amber-200 bg-amber-50 text-amber-900;
+  }
+  .note-danger {
+    @apply note border-red-200 bg-red-50 text-red-900;
+  }
+  .note-muted {
+    @apply note border-slate-200 bg-slate-50 text-slate-700;
+  }
+
+  /* ---- numbered form steps ---------------------------------------------------------
+     The registration form asks for five unrelated things. Numbering them turns one wall
+     of inputs into a short list with a visible end, which is the difference between
+     "this looks long" and "this is four questions". */
+  .step {
+    @apply relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6;
+  }
+  .step-head {
+    @apply flex items-start gap-3;
+  }
+  .step-num {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-light text-sm
+           font-bold text-brand;
+  }
+  .step-title {
+    @apply text-base font-bold leading-tight text-ink;
+  }
+  .step-sub {
+    @apply mt-1 text-sm leading-relaxed text-slate-500;
+  }
+
+  /* ---- selectable cards (channel picker, consent, opt-in) --------------------------
+     The native control is visually hidden but still focusable, so the card reflects
+     :checked and :focus-visible from the input it wraps. Everything is driven from the
+     real radio/checkbox — the card is decoration over a working native control, which
+     keeps keyboard and screen-reader behaviour intact. */
+  .choice {
+    @apply relative block overflow-hidden rounded-2xl border-2 border-slate-200 bg-white
+           text-left transition
+           hover:border-slate-300 hover:shadow-sm
+           has-[:checked]:shadow-md
+           has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/25;
+  }
+  /* The whole row is the target, not just the words. */
+  .choice-hit {
+    @apply flex cursor-pointer items-start gap-3 p-4;
+  }
+  /* Unavailable channels are shown rather than hidden: "WhatsApp is coming" is useful,
+     a silently missing option just looks like the service does not do WhatsApp. */
+  .choice-disabled {
+    @apply relative flex items-start gap-3 rounded-2xl border-2 border-dashed
+           border-slate-200 bg-slate-50 p-4 text-left;
+  }
+  .choice-dot {
+    @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2
+           border-slate-300 bg-white transition;
+  }
+  .choice-dot-inner {
+    @apply h-2 w-2 scale-0 rounded-full bg-white transition-transform;
+  }
+  .choice-check {
+    @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2
+           border-slate-400 bg-white text-white transition;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+
+  /* ---- misc ------------------------------------------------------------------------ */
+  .link {
+    @apply font-medium text-brand underline decoration-brand/40 underline-offset-2
+           transition hover:decoration-brand focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2;
+  }
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50
+           focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-sm
+           focus:font-semibold focus:text-white;
+  }
+}
+
+@layer utilities {
+  /*
+   * htmx indicators.
+   *
+   * htmx's own rule only fades .htmx-indicator to opacity 0 — it still occupies space, so
+   * the submit button was rendering "Continue" and an invisible "Please wait…" side by
+   * side and sizing itself for both. These swap the two out of the layout entirely.
+   */
+  .htmx-indicator {
+    display: none;
+  }
+  .htmx-request .htmx-indicator,
+  .htmx-request.htmx-indicator {
+    display: inline-flex;
+  }
+  .htmx-request .htmx-indicator-hide,
+  .htmx-request.htmx-indicator-hide {
+    display: none;
+  }
 }

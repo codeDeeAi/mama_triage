@@ -18,12 +18,23 @@ module.exports = {
         warn: '#b9761f',
         calm: '#2f8f5b',
         telegram: '#229ed9',
-        whatsapp: '#25d366',
+        whatsapp: '#128c4a',
       },
       fontFamily: {
         sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       maxWidth: { readable: '38rem' },
+      keyframes: {
+        // Revealing the phone field should look like the card growing to make room for
+        // it, not like a new block appearing somewhere below the fold.
+        reveal: {
+          from: { opacity: '0', transform: 'translateY(-4px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+      },
+      animation: {
+        reveal: 'reveal 180ms ease-out',
+      },
     },
   },
   plugins: [],

@@ -235,6 +235,40 @@ describe('web pages', () => {
     expect(res.text).toMatch(/not available right now/i);
   });
 
+  maybe('names a supported channel it cannot serve, instead of hiding it', async () => {
+    // A silently absent WhatsApp option reads as "this service does not do WhatsApp",
+    // which is not what is true — it is not connected on this deployment. The card is
+    // rendered greyed with the reason, and carries no input, so it still cannot be
+    // selected or posted (asserted by the test above).
+    const res = await request(app(['telegram'])).get('/register');
+    expect(res.text).toMatch(/WhatsApp/);
+    expect(res.text).toMatch(/Not connected yet/i);
+    expect(res.text).toMatch(/no WhatsApp Business number connected/i);
+  });
+
+  maybe('pre-selects the channel when there is only one to choose', async () => {
+    // One option is not a decision. Pre-selecting it removes a tap and stops the form
+    // failing on a "required" radio the mother had no alternative to.
+    const one = await request(app(['telegram'])).get('/register');
+    expect(one.text).toMatch(/value="telegram"[^>]*\schecked/);
+
+    // With a real choice on offer, nothing is chosen for her.
+    const both = await request(app(['telegram', 'whatsapp'])).get('/register');
+    expect(both.text).not.toMatch(/value="telegram"[^>]*\schecked/);
+    expect(both.text).not.toMatch(/value="whatsapp"[^>]*\schecked/);
+  });
+
+  maybe('asks for the WhatsApp number inside the WhatsApp option', async () => {
+    // The number is the consequence of choosing WhatsApp, not a separate question. It
+    // is disabled until that choice is made, so it is not submitted on the Telegram
+    // path even if it was filled in before switching.
+    const res = await request(app(['telegram', 'whatsapp'])).get('/register');
+    const card = res.text.slice(res.text.indexOf('value="whatsapp"'));
+    expect(card.indexOf('id="phone"')).toBeGreaterThan(-1);
+    expect(card.slice(0, card.indexOf('id="phone"'))).not.toMatch(/value="telegram"/);
+    expect(res.text).toMatch(/id="phone"[^>]*disabled/);
+  });
+
   maybe('renders a friendly 404 for a browser and JSON for the API', async () => {
     const page = await request(app(['telegram'])).get('/nope').set('Accept', 'text/html');
     expect(page.status).toBe(404);
@@ -276,6 +310,53 @@ describe('registration form submission', () => {
 
     expect(res.status).toBe(422);
     expect(res.text).toMatch(/A phone number is needed for WhatsApp/);
+  });
+
+  maybe('attaches each message to the field it is about, and announces the set', async () => {
+    // A list of problems at the foot of the form tells her something is wrong; a message
+    // under the offending input tells her which. Both are rendered: the summary carries
+    // role="alert" for the screen reader and links to the field, because on a form this
+    // long the failing input is often off screen.
+    const res = await request(app(['whatsapp']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: '', channel: 'whatsapp', phone: '' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).toMatch(/role="alert"/);
+    expect(res.text).toMatch(/id="displayName-error"/);
+    expect(res.text).toMatch(/id="displayName"[^>]*aria-invalid="true"/);
+    expect(res.text).toMatch(/id="consent-error"/);
+  });
+
+  maybe('gives back what she already typed when something is wrong', async () => {
+    // Re-answering questions that were never the problem is how a form loses someone.
+    const res = await request(app(['telegram', 'whatsapp']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'whatsapp', phone: '080', language: 'pcm' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).toMatch(/value="Amina"/);
+    expect(res.text).toMatch(/value="whatsapp"[^>]*\schecked/);
+    expect(res.text).toMatch(/value="pcm"\s+selected/);
+    expect(res.text).toMatch(/id="phone"[^>]*value="080"/);
+  });
+
+  maybe('does not hand a phone number back on the Telegram path', async () => {
+    // The number must not be re-populated into a form whose chosen channel forbids it,
+    // or resubmitting would reproduce the same rejection.
+    const res = await request(app(['telegram', 'whatsapp']))
+      .post('/register')
+      .set('HX-Request', 'true')
+      .type('form')
+      .send({ displayName: 'Amina', channel: 'telegram', phone: '08012345678' });
+
+    expect(res.status).toBe(422);
+    expect(res.text).not.toContain('08012345678');
+    expect(res.text).toMatch(/id="phone"[^>]*disabled/);
   });
 
   maybe('refuses a phone number posted on the Telegram path', async () => {

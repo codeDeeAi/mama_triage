@@ -85,6 +85,17 @@ const RegisterRequest = z
 /** Shown on the policy pages. Bump alongside the version constants. */
 const POLICY_UPDATED = '12 August 2026';
 
+/**
+ * Every channel this codebase can actually speak, in the order we would recommend them.
+ *
+ * Distinct from `availableChannels`, which is what THIS deployment has credentials for.
+ * The form renders the difference: a supported-but-unconfigured channel appears greyed
+ * with the reason, rather than vanishing. A silently absent WhatsApp option reads as
+ * "this service does not do WhatsApp", which is not what is true — it is not connected
+ * here yet. It carries no radio input, so it cannot be selected or posted.
+ */
+const SUPPORTED_CHANNELS: ReadonlyArray<'telegram' | 'whatsapp'> = ['telegram', 'whatsapp'];
+
 export function createRegisterRouter(deps: RegisterDeps): Router {
   const router = Router();
 
@@ -114,6 +125,7 @@ export function createRegisterRouter(deps: RegisterDeps): Router {
     res.render('register', {
       title: 'Join MamaTriage',
       channels: deps.availableChannels,
+      supportedChannels: SUPPORTED_CHANNELS,
     });
   });
 
@@ -130,6 +142,7 @@ export function createRegisterRouter(deps: RegisterDeps): Router {
 
     if (!outcome.ok) {
       const view = { title: 'Join MamaTriage', channels: deps.availableChannels,
+                     supportedChannels: SUPPORTED_CHANNELS,
                      errors: outcome.issues, values: req.body as Record<string, unknown> };
       // 422 rather than 400: htmx only swaps error responses when told to, and the
       // registration form opts in via hx-swap on this status.
