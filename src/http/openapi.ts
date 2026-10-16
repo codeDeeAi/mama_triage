@@ -29,6 +29,7 @@ const validationError = (description = 'Request body failed validation') => ({
   content: json(ref('ValidationError')),
 });
 const notMounted = jsonError('Route not mounted on this deployment', 'not found');
+const internalError = jsonError('Unexpected failure (database, LLM or retrieval)', 'internal error');
 
 const enumOf = (values: string[], description?: string) => ({
   type: 'string',
@@ -600,8 +601,9 @@ export const openApiSpec = {
       'Triage and symptom assessment for postpartum mothers and newborns, delivered over ' +
       'WhatsApp and Telegram.\n\n' +
       'Unknown paths return `404 {"error":"not found"}` (JSON for `/api` paths and JSON ' +
-      'clients, an HTML page otherwise). An unhandled error returns ' +
-      '`500 {"error":"internal error"}`.',
+      'clients, an HTML page otherwise). An unexpected failure returns ' +
+      '`500 {"error":"internal error"}`, or an HTML error page when the client sends ' +
+      '`Accept: text/html` on a non-`/api` path.',
   },
   servers: [{ url: '/' }],
   tags: [
@@ -665,6 +667,7 @@ export const openApiSpec = {
               checks: { database: 'unreachable', assessment: 'ok' },
             }),
           },
+          500: internalError,
         },
       },
     },
@@ -752,6 +755,7 @@ export const openApiSpec = {
             }),
           },
           404: notMounted,
+          500: internalError,
         },
       },
     },
@@ -784,6 +788,10 @@ export const openApiSpec = {
           200: { description: 'Success page, or result fragment for htmx', content: html },
           422: { description: 'Form re-rendered with field errors', content: html },
           404: notMounted,
+          500: {
+            description: 'Unexpected failure. HTML error page for browsers, JSON otherwise.',
+            content: { ...html, ...json(ref('Error'), { error: 'internal error' }) },
+          },
         },
       },
     },
@@ -992,7 +1000,20 @@ export const openApiSpec = {
           },
           400: validationError(),
           404: jsonError('Demo disabled', 'not found'),
-          500: { description: 'The handler threw', content: json(ref('DemoFailure')) },
+          500: {
+            description:
+              'The message handler threw (DemoFailure), or the session lookup afterwards ' +
+              'failed (Error).',
+            content: {
+              'application/json': {
+                schema: { oneOf: [ref('DemoFailure'), ref('Error')] },
+                examples: {
+                  handler: { value: { error: 'assessment failed', detail: 'Error: LLM timeout' } },
+                  lookup: { value: { error: 'internal error' } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -1025,6 +1046,7 @@ export const openApiSpec = {
           200: { description: 'Retrieval results', content: json(ref('KbQueryResponse')) },
           400: validationError(),
           ...adminAuthResponses,
+          500: internalError,
           503: jsonError('Knowledge index not loaded', 'knowledge index unavailable'),
         },
       },
@@ -1054,6 +1076,7 @@ export const openApiSpec = {
           },
           400: validationError(),
           ...adminAuthResponses,
+          500: internalError,
           503: jsonError('Knowledge index not loaded', 'assessment unavailable — knowledge index not loaded'),
         },
       },

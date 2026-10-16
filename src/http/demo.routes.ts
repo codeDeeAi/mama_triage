@@ -38,6 +38,7 @@ import { detectDistress } from '../safety/distress';
 import type { SessionRepository } from '../db/repositories/session.repo';
 import type { OutcomeRepository } from '../db/repositories/outcome.repo';
 import type { Logger } from '../telemetry/logger';
+import { asyncHandler } from './asyncHandler';
 
 /** Collects outbound messages instead of sending them. */
 export class CapturingTransport implements MessageTransport {
@@ -123,7 +124,7 @@ export function createDemoRouter(deps: DemoDeps): Router {
    * Runs the real handler, so consent, the safety scan, slot filling and persistence all
    * behave exactly as they would for a message arriving over WhatsApp.
    */
-  router.post('/demo/api/message', async (req: Request, res: Response) => {
+  router.post('/demo/api/message', asyncHandler(async (req: Request, res: Response) => {
     const parsed = MessageRequest.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid request', issues: parsed.error.issues });
@@ -199,7 +200,7 @@ export function createDemoRouter(deps: DemoDeps): Router {
           : null,
       },
     });
-  });
+  }));
 
   return router;
 }

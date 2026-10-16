@@ -21,6 +21,7 @@ import type { MessageTransport } from '../whatsapp/transport';
 import { templateIdFor } from '../whatsapp/templates';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../web/policyVersions';
 import type { Logger } from '../telemetry/logger';
+import { asyncHandler } from './asyncHandler';
 
 export interface RegisterDeps {
   registrations: RegistrationRepository;
@@ -145,7 +146,7 @@ export function createRegisterRouter(deps: RegisterDeps): Router {
    * use the same templates the server already owns rather than being rebuilt in the
    * browser. A normal (non-htmx) POST still works and renders a full page.
    */
-  router.post('/register', async (req: Request, res: Response) => {
+  router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     const isHtmx = req.get('HX-Request') === 'true';
     const outcome = await register(deps, req.body as Record<string, unknown>);
 
@@ -176,7 +177,7 @@ export function createRegisterRouter(deps: RegisterDeps): Router {
       return;
     }
     res.render('register-done', view);
-  });
+  }));
 
   /** What the form should offer. */
   router.get('/register/api/channels', (_req: Request, res: Response) => {
@@ -188,14 +189,14 @@ export function createRegisterRouter(deps: RegisterDeps): Router {
   });
 
   /** JSON API, kept for the evaluation harness and for programmatic use. */
-  router.post('/register/api', async (req: Request, res: Response) => {
+  router.post('/register/api', asyncHandler(async (req: Request, res: Response) => {
     const outcome = await register(deps, req.body as Record<string, unknown>);
     if (!outcome.ok) {
       res.status(400).json({ error: 'invalid registration', issues: outcome.issues });
       return;
     }
     res.json(outcome.result);
-  });
+  }));
 
   return router;
 }

@@ -25,6 +25,7 @@ import { openApiSpec } from './openapi';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { Logger } from '../telemetry/logger';
+import { asyncHandler } from './asyncHandler';
 
 export interface AppDeps extends WebhookDeps {
   appSecret: string;
@@ -132,7 +133,7 @@ export function createApp(deps: AppDeps): Express {
   });
 
   /** Readiness: dependencies are reachable. Cloud Run uses this to gate traffic. */
-  app.get('/readyz', async (_req: Request, res: Response) => {
+  app.get('/readyz', asyncHandler(async (_req: Request, res: Response) => {
     const dbOk = await deps.db.healthy();
     // Assessment status is reported but deliberately does not affect the status code. A
     // deployment with assessment down still serves consent, pathway selection and the
@@ -145,7 +146,7 @@ export function createApp(deps: AppDeps): Express {
         assessment: deps.assessmentStatus?.() ?? 'unknown',
       },
     });
-  });
+  }));
 
   /** API documentation: the raw OpenAPI document and Swagger UI over it. */
   app.get('/api-docs.json', (_req: Request, res: Response) => {
@@ -180,11 +181,28 @@ export function createApp(deps: AppDeps): Express {
     });
   });
 
-  // Express 4 identifies an error handler by its arity — `next` must stay in the
-  // signature even though it is unused.
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    deps.logger.error({ err }, 'unhandled request error');
-    res.status(500).json({ error: 'internal error' });
+  // Express 4 identifies an error handler by its arity — all four parameters must stay.
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    deps.logger.error({ err, path: req.path }, 'unhandled request error');
+    // Part of a response already went out; only Express's default handler can end it.
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    res.status(500);
+    // A browser submitting the registration form gets a page; a JSON body there reads as
+    // a broken site. Only an explicit text/html Accept counts — probes, curl and API
+    // clients that send none or */* keep the JSON error they always had.
+    const wantsHtml = (req.get('Accept') ?? '').includes('text/html');
+    if (req.path.includes('/api') || !wantsHtml) {
+      res.json({ error: 'internal error' });
+      return;
+    }
+    res.render('error', {
+      title: 'Something went wrong — MamaTriage',
+      heading: 'Something went wrong',
+      message: 'Please try again in a few minutes.',
+    });
   });
 
   return app;

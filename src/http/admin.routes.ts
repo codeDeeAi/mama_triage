@@ -27,6 +27,7 @@ import { runAssessmentTurn, type AssessmentDeps } from '../orchestrator/assessme
 import type { Retriever } from '../rag/retrieve';
 import type { Language, Pathway, Slots, Urgency } from '../types';
 import type { Logger } from '../telemetry/logger';
+import { asyncHandler } from './asyncHandler';
 
 export interface AdminDeps {
   logger: Logger;
@@ -89,7 +90,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
   });
 
   /** Retrieval debugging: what does the knowledge base return for this query? */
-  router.post('/admin/kb/query', async (req: Request, res: Response) => {
+  router.post('/admin/kb/query', asyncHandler(async (req: Request, res: Response) => {
     if (!deps.retriever) {
       res.status(503).json({ error: 'knowledge index unavailable' });
       return;
@@ -120,7 +121,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
       })),
       indexSize: deps.indexSize?.() ?? null,
     });
-  });
+  }));
 
   /**
    * Drive a full assessment without WhatsApp.
@@ -129,7 +130,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
    * turn before the assessment — so a simulated run exercises the same guarantees a real
    * message does.
    */
-  router.post('/admin/simulate', async (req: Request, res: Response) => {
+  router.post('/admin/simulate', asyncHandler(async (req: Request, res: Response) => {
     if (!deps.assessment) {
       res.status(503).json({ error: 'assessment unavailable — knowledge index not loaded' });
       return;
@@ -212,7 +213,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
       latencyMs: Date.now() - started,
       ...(fallbackReason ? { fallbackReason } : {}),
     });
-  });
+  }));
 
   return router;
 }
