@@ -20,6 +20,8 @@ import { createDemoRouter, type DemoDeps } from './demo.routes';
 import { createTelegramRouter, type TelegramWebhookDeps } from './telegram.routes';
 import { createRegisterRouter, type RegisterDeps } from './register.routes';
 import { join } from 'node:path';
+import swaggerUi from 'swagger-ui-express';
+import { openApiSpec } from './openapi';
 import type { Db } from '../db/pool';
 import type { AuditRepository } from '../db/repositories/event.repo';
 import type { Logger } from '../telemetry/logger';
@@ -144,6 +146,14 @@ export function createApp(deps: AppDeps): Express {
       },
     });
   });
+
+  /** API documentation: the raw OpenAPI document and Swagger UI over it. */
+  app.get('/api-docs.json', (_req: Request, res: Response) => {
+    res.json(openApiSpec);
+  });
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+    customSiteTitle: 'MamaTriage API',
+  }));
 
   if (deps.admin) {
     app.use(createAdminRouter({ ...deps.admin, logger: deps.logger }));
