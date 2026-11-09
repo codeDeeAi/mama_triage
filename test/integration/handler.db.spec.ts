@@ -131,6 +131,11 @@ async function currentSession(c: Ctx) {
   return c.sessions.findActive(c.waIdHash, 60);
 }
 
+/** The most recent session, including one that has completed (findActive excludes those). */
+async function latestSession(c: Ctx) {
+  return c.sessions.findLatest(c.waIdHash);
+}
+
 const maybe = (name: string, fn: () => Promise<void>) =>
   it(name, async () => {
     if (!available) return;
@@ -157,7 +162,7 @@ describe('consent flow', () => {
     const session = await currentSession(c);
     expect(session?.consent_at).not.toBeNull();
     expect(session?.state).toBe('choosing_pathway');
-    expect(c.wa.buttons[1]?.ids).toEqual(['PATHWAY_MOTHER', 'PATHWAY_BABY']);
+    expect(c.wa.buttons[1]?.ids).toEqual(['PATHWAY_MOTHER', 'PATHWAY_BABY', 'PATHWAY_OLDER_BABY']);
 
     const events = await c.audit.listForSession(session!.id);
     expect(events.map((e) => e.event)).toContain('CONSENT_GIVEN');
@@ -208,7 +213,7 @@ describe('pathway routing', () => {
     await c.send('yes', { replyId: CONSENT_ACCEPT_ID });
     await c.send('Baby 2 months+', { replyId: PATHWAY_OLDER_BABY_ID });
 
-    const session = await currentSession(c);
+    const session = await latestSession(c);
     expect(session?.state).toBe('completed');
     expect(session?.pathway).not.toBe('neonatal');
     expect(c.wa.allBodies).toMatch(/only check babies under 2 months/);
@@ -220,7 +225,7 @@ describe('pathway routing', () => {
     await c.send('hello');
     await c.send('yes');
     await c.send('3');
-    expect((await currentSession(c))?.state).toBe('completed');
+    expect((await latestSession(c))?.state).toBe('completed');
   });
 
   maybe('routes free text mentioning the baby to the neonatal pathway', async () => {
