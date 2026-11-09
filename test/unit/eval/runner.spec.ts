@@ -227,9 +227,10 @@ describe('runAll — the clinical verification gate', () => {
     expect(assertRegisterVerified.toString()).toMatch(/unverified rule/i);
   });
 
-  it('flags that some decisions are simulated rather than clinician-backed', () => {
-    expect(simulatedRules().length).toBeGreaterThan(0);
-    expect(registerFullyAssured()).toBe(false);
+  it('reports no simulated decisions once every rule is traced to a source', () => {
+    // Traced to a published source is still not clinician sign-off; see redFlags.spec.ts.
+    expect(simulatedRules()).toEqual([]);
+    expect(registerFullyAssured()).toBe(true);
   });
 
   it('allows an explicitly-marked development run', async () => {
