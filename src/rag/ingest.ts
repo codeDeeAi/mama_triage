@@ -23,6 +23,7 @@ import { chunkDocument } from './chunk';
 import { VoyageEmbedder } from './embed';
 import { buildIndex } from './store';
 import type { Chunk, EmbeddedChunk, IndexFile } from './types';
+import type { Pathway } from '../types';
 // Imported statically for the CLI entrypoint below. `getConfig()` is lazy, so importing
 // these modules validates nothing and has no side effect beyond loading dotenv.
 import { getConfig } from '../config';
@@ -35,9 +36,13 @@ export interface SourceDocument {
   docVersion?: string;
   sourceUri?: string;
   retrievedAt?: string;
+  /** Clinical domain of the whole document (front matter `domain`). */
+  domain?: Pathway;
   text: string;
   sha256: string;
 }
+
+const DOMAINS: readonly Pathway[] = ['maternal', 'neonatal', 'unset'];
 
 /** Front matter at the top of each corpus file. */
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
@@ -83,6 +88,12 @@ export function loadCorpus(dir: string): SourceDocument[] {
       );
     }
 
+    if (meta.domain !== undefined && !DOMAINS.includes(meta.domain as Pathway)) {
+      throw new Error(
+        `${file}: front matter 'domain' must be one of ${DOMAINS.join(', ')}, got '${meta.domain}'.`,
+      );
+    }
+
     docs.push({
       slug,
       title: meta.title,
@@ -90,6 +101,7 @@ export function loadCorpus(dir: string): SourceDocument[] {
       ...(meta.version ? { docVersion: meta.version } : {}),
       ...(meta.source_uri ? { sourceUri: meta.source_uri } : {}),
       ...(meta.retrieved_at ? { retrievedAt: meta.retrieved_at } : {}),
+      ...(meta.domain ? { domain: meta.domain as Pathway } : {}),
       text: body,
       // Hash the raw file including front matter: a version bump is a corpus change.
       sha256: sha256(raw),
@@ -109,6 +121,7 @@ export function chunkCorpus(docs: readonly SourceDocument[]): Chunk[] {
         title: doc.title,
         publisher: doc.publisher,
         ...(doc.docVersion ? { docVersion: doc.docVersion } : {}),
+        ...(doc.domain ? { domain: doc.domain } : {}),
       }),
     );
   }
