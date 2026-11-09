@@ -16,6 +16,7 @@
 import { detectDistress } from '../safety/distress';
 import { evaluateRedFlags } from '../safety/redFlags';
 import { hashIdentity } from '../privacy/hashPhone';
+import { redactText } from '../privacy/redact';
 import type { InboundMessage } from '../whatsapp/types';
 import type { MessageTransport } from '../whatsapp/transport';
 import type { SessionRepository, SessionRow } from '../db/repositories/session.repo';
@@ -25,6 +26,7 @@ import type { OutcomeRepository } from '../db/repositories/outcome.repo';
 import type { RegistrationRepository } from '../db/repositories/registration.repo';
 import type { FollowUpRepository } from '../db/repositories/followup.repo';
 import { dueAt, planFollowUp } from './followUp';
+import { OLDER_BABY_SCOPE_MESSAGE } from './ageScope';
 import { nextDomain } from './pathways';
 import type { Logger } from '../telemetry/logger';
 import type { Language, Pathway } from '../types';
@@ -70,6 +72,7 @@ export const CONSENT_ACCEPT_ID = 'CONSENT_ACCEPT';
 export const CONSENT_DECLINE_ID = 'CONSENT_DECLINE';
 export const PATHWAY_MOTHER_ID = 'PATHWAY_MOTHER';
 export const PATHWAY_BABY_ID = 'PATHWAY_BABY';
+export const PATHWAY_OLDER_BABY_ID = 'PATHWAY_OLDER_BABY';
 
 const CONSENT_COPY: Record<Language, string> = {
   en:
@@ -453,7 +456,10 @@ async function handleAssessment(
     knownSlots: session.slots,
     currentUrgency: session.urgency_current,
     transcript,
-    message: msg.text,
+    // Redacted, like the transcript: on the first turn, before any clinical slot is known,
+    // this text is what retrieval embeds, so it leaves the system for the embedding
+    // provider. An identifier in it must not.
+    message: redactText(msg.text),
   });
 
   await deps.sessions.mergeSlots(session.id, outcome.slots);
@@ -470,7 +476,12 @@ async function handleAssessment(
         escalatedBy: outcome.decision.escalatedBy,
         redFlags: outcome.decision.redFlags,
         slots: outcome.decision.slots,
-        citations: outcome.decision.citations,
+        citations: outcome.decision.citations.map((c) => {
+          const source = outcome.decision!.sources.find((src) => src.chunkId === c.chunk_id);
+          return source
+            ? { ...c, ...source }
+            : { ...c, ungrounded: outcome.decision!.ungrounded };
+        }),
         rationale: outcome.decision.result.rationale,
         model: outcome.decision.model,
         promptVersion: outcome.decision.promptVersion,
@@ -585,7 +596,10 @@ async function handleConsent(
     await deps.audit.record('CONSENT_GIVEN', {}, session.id);
     await deps.whatsapp.sendOptions(msg.from, PATHWAY_PROMPT[session.language], [
       { id: PATHWAY_MOTHER_ID, title: 'For me (mother)' },
-      { id: PATHWAY_BABY_ID, title: 'For my baby' },
+      // The infant pathway covers 0 to 59 days only (see ageScope.ts), so the age is asked
+      // here, at the door, rather than discovered halfway through an assessment.
+      { id: PATHWAY_BABY_ID, title: 'Baby under 2 months' },
+      { id: PATHWAY_OLDER_BABY_ID, title: 'Baby 2 months+' },
     ]);
     await deps.messages.record({
       sessionId: session.id,
@@ -618,6 +632,19 @@ async function handlePathwayChoice(
   reply: (body: string) => Promise<void>,
 ): Promise<void> {
   const said = msg.text.trim().toLowerCase();
+
+  // An older baby is outside the infant pathway's clinical basis. Refer, do not triage.
+  const olderBaby =
+    msg.replyId === PATHWAY_OLDER_BABY_ID ||
+    said === '3' ||
+    /\b(older baby|baby 2 months\+?|2 months\+|pikin wey don pass)\b/i.test(said);
+  if (olderBaby) {
+    await deps.sessions.setState(session.id, 'completed');
+    await deps.audit.record('INFANT_AGE_OUT_OF_SCOPE', { at: 'pathway_choice' }, session.id);
+    await reply(OLDER_BABY_SCOPE_MESSAGE[session.language]);
+    return;
+  }
+
   const maternal =
     msg.replyId === PATHWAY_MOTHER_ID ||
     /\b(me|mother|mama|myself|my ?self)\b/i.test(said) ||
@@ -634,8 +661,8 @@ async function handlePathwayChoice(
   if (!chosen) {
     await reply(
       session.language === 'en'
-        ? 'Please tap *For me (mother)* or *For my baby*.'
-        : 'Abeg tap *For me (mother)* or *For my baby*.',
+        ? 'Please tap *For me (mother)*, *Baby under 2 months* or *Baby 2 months+*.'
+        : 'Abeg tap *For me (mother)*, *Baby under 2 months* or *Baby 2 months+*.',
     );
     return;
   }
