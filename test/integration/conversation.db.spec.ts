@@ -127,6 +127,7 @@ function scriptedAssessment(
           promptVersion: 'triage.v1',
           inputTokens: 120, outputTokens: 60, latencyMs: 900,
           ungrounded: false,
+          sources: [],
           result: {
             detected_language: 'en', pathway: 'neonatal',
             extracted_slots: step.slots ?? {}, red_flags: [],
@@ -228,6 +229,24 @@ describe('full conversation', () => {
     expect(c.wa.last).toContain('CARE AT HOME');
     expect(c.wa.last).toContain('What to do now');
     expect((await c.session())?.state).toBe('completed');
+  });
+
+  maybe('redacts identifiers from the text retrieval may send to the embedding provider', async () => {
+    const seen: string[] = [];
+    const assessment = scriptedAssessment([{ urgency: 'self_care' }]);
+    assessment.retriever = {
+      retrieve: async (ctx: { message: string }) => {
+        seen.push(ctx.message);
+        return retrieval;
+      },
+    } as never;
+    const c = ctx(assessment);
+
+    await reachAssessing(c);
+    await c.send('call me on 08031234567, baby not feeding well');
+
+    expect(seen.at(-1)).toBeDefined();
+    expect(seen.at(-1)).not.toContain('08031234567');
   });
 
   maybe('accumulates slots across turns', async () => {
