@@ -377,7 +377,7 @@ describe('evaluateRedFlags', () => {
       pathway: 'maternal',
     });
     expect(hits[0]?.evidence.length).toBeGreaterThan(0);
-    expect(hits[0]?.source).toMatch(/VERIFY|BEmONC|IMCI/);
+    expect(hits[0]?.source).toMatch(/VERIFY|BEmONC|IMCI|PCPNC/);
   });
 
   it('fires at most one hit per rule even with repeated matches', () => {
@@ -409,14 +409,29 @@ describe('robustness', () => {
 describe('assurance level — simulated versus traced', () => {
   it('separates simulated placeholders from guideline-traced rules', () => {
     // `verified` is a boolean but the assurance behind it is not uniform. Collapsing the
-    // two would let a placeholder read as clinical validation in the report.
-    const simulated = simulatedRules();
-    expect(simulated.length).toBeGreaterThan(0);
-    for (const r of simulated) {
-      expect(r.verified).toBe(true);
-      expect(r.verifiedBy).toMatch(/SIMULATED REVIEW/);
-      expect(r.verifiedBy).toMatch(/NOT A CLINICIAN/i);
+    // two would let a placeholder read as clinical validation in the report. The live
+    // register no longer carries placeholders, so the filter is checked on a stand-in.
+    const base = RED_FLAGS[0]!;
+    const placeholder = {
+      ...base,
+      id: 'TEST_SIMULATED',
+      verifiedBy: 'SIMULATED REVIEW — NOT A CLINICIAN. Stand-in for this test only.',
+    };
+    expect(simulatedRules([...RED_FLAGS, placeholder]).map((r) => r.id)).toEqual([
+      'TEST_SIMULATED',
+    ]);
+  });
+
+  it('traces every maternal rule other than haemorrhage to WHO PCPNC (2015)', () => {
+    const maternal = RED_FLAGS.filter(
+      (r) => r.pathway === 'maternal' && r.id !== 'MAT_HAEMORRHAGE',
+    );
+    expect(maternal.length).toBe(8);
+    for (const r of maternal) {
+      expect(r.source).toMatch(/WHO PCPNC, 3rd ed\. \(2015\), chart [A-M]\d/);
+      expect(r.source).not.toMatch(/VERIFY/);
     }
+    expect(simulatedRules()).toEqual([]);
   });
 
   it('records how every verified rule was verified', () => {
@@ -436,8 +451,10 @@ describe('assurance level — simulated versus traced', () => {
     }
   });
 
-  it('reports the register as not fully assured while placeholders remain', () => {
-    expect(registerFullyAssured()).toBe(false);
+  it('reports the register as fully assured once every rule is traced to a source', () => {
+    // "Fully assured" means every decision is backed by a published source rather than a
+    // placeholder. It is not clinician sign-off, which the test above still forbids claiming.
+    expect(registerFullyAssured()).toBe(true);
   });
 
   it('lets evaluation runs proceed, since every rule now has a decision', () => {

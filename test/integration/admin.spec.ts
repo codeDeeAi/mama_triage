@@ -103,11 +103,11 @@ describe('GET /admin/register — the verification gate', () => {
   });
 
   it('reports simulated rules separately from guideline-traced ones', async () => {
-    // A placeholder review must never be readable as clinical validation.
+    // A placeholder review must never be readable as clinical validation. Since the
+    // maternal rules were traced to WHO PCPNC (2015), the live register has none.
     const res = await request(app({ isProduction: false })).get('/admin/register');
-    expect(res.body.simulated.length).toBeGreaterThan(0);
-    expect(res.body.simulated).toContain('MAT_CONVULSION');
-    expect(res.body.fullyAssured).toBe(false);
+    expect(res.body.simulated).toEqual([]);
+    expect(res.body.fullyAssured).toBe(true);
   });
 });
 

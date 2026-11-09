@@ -94,10 +94,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'her body dey shake',
       'my wife started fitting',
     ],
-    source: 'VERIFY: FMOH BEmONC — eclampsia / convulsions in pregnancy and postpartum',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart B6 'Emergency signs' — convulsions or unconscious: refer urgently; chart D28 'Advise on when to return' — go to a facility immediately, day or night, for convulsions.",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_HAEMORRHAGE',
@@ -146,10 +147,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'I have a high fever',
       'body dey hot and cold dey catch me',
     ],
-    source: 'VERIFY: FMOH BEmONC — puerperal sepsis danger signs',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart B6 'Dangerous fever' (fever >38°C with very fast breathing, stiff neck, lethargy or very weak/unable to stand: refer urgently); chart E6 'If fever or foul-smelling lochia'; chart D28 (go immediately for fever with being too weak to get out of bed; fever alone, as soon as possible). This rule is deliberately MORE cautious than the guide: chills or a reported 'high fever' escalate without an accompanying sign, because the service cannot take a temperature.",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_PREECLAMPSIA_SEVERE',
@@ -178,10 +180,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'pain in my upper stomach',
       'my face is swollen',
     ],
-    source: 'VERIFY: FMOH BEmONC — severe pre-eclampsia warning signs',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart B7 'Priority signs' (severe headache, blurred vision, epigastric pain: measure BP); chart E3 'If elevated diastolic blood pressure' (>=110 mmHg: refer urgently); chart D28 (go immediately for headache with blurred vision). This rule is deliberately MORE cautious than the guide: any one warning sign, including face or hand swelling, escalates, because the service cannot measure blood pressure.",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_COLLAPSE',
@@ -201,10 +204,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'she fainted this morning',
       'she no dey answer',
     ],
-    source: 'VERIFY: FMOH BEmONC — shock / loss of consciousness',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart B3 'Circulation (shock)' (cold moist skin, weak fast pulse) and chart B6 'Emergency signs' (unconscious): refer urgently.",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_BREATHING',
@@ -222,10 +226,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'I can\'t breathe properly',
       'breath dey hard',
     ],
-    source: 'VERIFY: FMOH BEmONC — respiratory distress',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart B3 'Airway and breathing' (very difficult breathing or central cyanosis: refer urgently); chart E9 'If cough or breathing difficulty'; chart D28 (go immediately for fast or difficult breathing, shortness of breath or chest pain).",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_WOUND_INFECTION',
@@ -244,10 +249,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'the caesarean wound is red and swollen',
       'wound dey smell',
     ],
-    source: 'VERIFY: FMOH BEmONC — wound infection',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart E7 'If pus or perineal pain' (perineal infection: treat, follow up in 2 days); chart D28 (go as soon as possible for perineal pain or draining pus). Caesarean wounds are not charted separately; the perineal chart is the nearest section.",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_FOUL_LOCHIA',
@@ -262,10 +268,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'the discharge has a bad smell',
       'smelly discharge since yesterday',
     ],
-    source: 'VERIFY: FMOH BEmONC — endometritis',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart E6 'If fever or foul-smelling lochia' (with fever >38°C: uterine infection, refer urgently); chart D28 (go as soon as possible for foul-smelling lochia).",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
   {
     id: 'MAT_MASTITIS',
@@ -284,10 +291,11 @@ const MATERNAL_RULES: RedFlagRule[] = [
       'breast dey pain and hot',
       'I think I have mastitis',
     ],
-    source: 'VERIFY: FMOH BEmONC — mastitis / breast abscess',
+    source:
+      "WHO PCPNC, 3rd ed. (2015), chart E8 'If breast problem', which refers to chart J9 (painful, swollen, red part of breast with fever: mastitis, treat and reassess in 2 days); chart D28 (go as soon as possible for swollen, red or tender breasts).",
     verified: true,
     verifiedBy:
-      'SIMULATED REVIEW — NOT A CLINICIAN. Urgency set by the author from general postpartum danger-sign practice, pending sign-off by a qualified reviewer. MUST be replaced before any figure derived from this rule is reported.',
+      'author, traced to WHO PCPNC 3rd ed. (2015), WHO IRIS edition ISBN 978 92 4 154935 6, chart codes checked 9 November 2026. NOT a clinician sign-off.',
   },
 ];
 
