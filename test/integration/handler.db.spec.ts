@@ -13,7 +13,13 @@ import { createDb, type Db } from '../../src/db/pool';
 import { SessionRepository } from '../../src/db/repositories/session.repo';
 import { MessageRepository } from '../../src/db/repositories/message.repo';
 import { AuditRepository, WebhookEventRepository } from '../../src/db/repositories/event.repo';
-import { createMessageHandler, CONSENT_ACCEPT_ID, CONSENT_DECLINE_ID, PATHWAY_BABY_ID } from '../../src/orchestrator/handler';
+import {
+  createMessageHandler,
+  CONSENT_ACCEPT_ID,
+  CONSENT_DECLINE_ID,
+  PATHWAY_BABY_ID,
+  PATHWAY_OLDER_BABY_ID,
+} from '../../src/orchestrator/handler';
 import { hashIdentity } from '../../src/privacy/hashPhone';
 import type { InboundMessage } from '../../src/whatsapp/types';
 
@@ -194,6 +200,27 @@ describe('pathway routing', () => {
     const session = await currentSession(c);
     expect(session?.pathway).toBe('neonatal');
     expect(session?.state).toBe('assessing');
+  });
+
+  maybe('refers a baby aged 2 months or older instead of assessing', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('yes', { replyId: CONSENT_ACCEPT_ID });
+    await c.send('Baby 2 months+', { replyId: PATHWAY_OLDER_BABY_ID });
+
+    const session = await currentSession(c);
+    expect(session?.state).toBe('completed');
+    expect(session?.pathway).not.toBe('neonatal');
+    expect(c.wa.allBodies).toMatch(/only check babies under 2 months/);
+    expect(c.wa.allBodies).toMatch(/Go to a health facility now/);
+  });
+
+  maybe('accepts 3 as the older-baby choice on a text-only transport', async () => {
+    const c = ctx();
+    await c.send('hello');
+    await c.send('yes');
+    await c.send('3');
+    expect((await currentSession(c))?.state).toBe('completed');
   });
 
   maybe('routes free text mentioning the baby to the neonatal pathway', async () => {
