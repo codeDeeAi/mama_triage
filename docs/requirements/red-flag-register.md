@@ -254,7 +254,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, 'Check for very severe disease and local bacterial infection' — 'Not feeding well' → VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet, Management of the sick young infant aged up to 2 months (2019), 'Check for possible serious bacterial infection or very severe disease' — 'Not able to feed at all or not feeding well' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -279,7 +279,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Severe chest indrawing' → VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Severe chest indrawing' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. Unchanged from the March 2014 edition. Grunting and stopped breathing are not listed in either edition; the rule treats them as at least as severe as chest indrawing.
 
 **Phrasings this rule catches:**
 
@@ -302,7 +302,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Convulsions' → VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Convulsions' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -324,7 +324,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Movement only when stimulated or no movement at all' → VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Movement only when stimulated or no movement at all' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -348,7 +348,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI young infant VERY SEVERE DISEASE — 'Fever (37.5°C or above or feels hot) or low body temperature (less than 35.5°C or feels cold)'. The degree values were lost from the WHO 2014 PDF during text extraction and were recovered from the WHO-derived South Africa IMCI Chart Booklet 2022, which states them identically in two separate places. CONFIRM against the WHO 2014 chart by eye before final sign-off.
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'High body temperature (38°C or above)' or 'Low body temperature (less than 35.5°C)', measured axillary → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. The March 2014 edition used 37.5°C or 'feels hot'. This rule is deliberately MORE cautious than the 2019 chart: it also fires on a mother's report that the baby feels hot or cold, because the service cannot take a temperature. Numeric readings it matches start at 38°C.
 
 **Phrasings this rule catches:**
 
@@ -369,7 +369,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, 'Check for jaundice' — 'Any jaundice if age less than 24 hours' → SEVERE JAUNDICE, refer URGENTLY to hospital
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019), 'Check for jaundice' — 'Any jaundice in an infant aged less than 24 hours' → SEVERE JAUNDICE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -390,7 +390,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), 'Check for jaundice' — 'Yellow palms and soles at any age' (or any jaundice under 24 hours) → SEVERE JAUNDICE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019), 'Check for jaundice' — 'Yellow palms or soles at any age' (or any jaundice under 24 hours) → SEVERE JAUNDICE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -412,7 +412,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO-derived South Africa IMCI Chart Booklet 2022, young infant assessment — 'Bulging fontanelle' is listed among the signs requiring urgent referral. Not separately enumerated in the WHO 2014 young-infant chart, so confirm before relying on it.
+**Proposed source:** WHO-derived South Africa IMCI Chart Booklet 2022, young infant assessment — 'Bulging fontanelle' is listed among the signs requiring urgent referral. It is not listed in the WHO young-infant chart of 2014 or 2019, so this rule is MORE cautious than WHO; confirm with a clinician before relying on it.
 
 **Phrasings this rule catches:**
 
@@ -431,7 +431,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Umbilicus red or draining pus' → LOCAL BACTERIAL INFECTION, oral antibiotic + follow-up in 2 days
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Umbilicus red or draining pus' → LOCAL BACTERIAL INFECTION, oral amoxicillin for 5 days and follow-up in 2 days. Unchanged in tier from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
@@ -453,7 +453,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Fast breathing (60 breaths per minute or more)' → VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Fast breathing (60 breaths per minute or more) in infants less than 7 days old' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY; in infants 7–59 days old → PNEUMONIA, oral amoxicillin for 7 days and follow-up in 3 days. The March 2014 edition classified fast breathing at any young-infant age as VERY SEVERE DISEASE. This rule is deliberately MORE cautious than the 2019 chart for infants aged 7 to 59 days: a mother cannot count breaths or look for chest indrawing, so a report of fast breathing is treated as an emergency at any age. Flagged for clinical review.
 
 **Phrasings this rule catches:**
 
@@ -475,7 +475,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), 'Check for jaundice' — jaundice after 24 hours with palms and soles not yellow → JAUNDICE, home care + follow-up in 1 day; refer if infant older than 14 days
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019), 'Check for jaundice' — jaundice appearing after 24 hours with palms and soles not yellow → JAUNDICE: home care, return immediately if palms or soles turn yellow, follow-up in 1 day, and refer to hospital if older than 3 weeks (the March 2014 edition said 14 days). Tier unchanged.
 
 **Phrasings this rule catches:**
 
@@ -497,7 +497,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant — 'Not feeding well' is listed under VERY SEVERE DISEASE, refer URGENTLY
+**Proposed source:** WHO IMCI chart booklet for the sick young infant (2019) — 'Not able to feed at all or not feeding well' → POSSIBLE SERIOUS BACTERIAL INFECTION or VERY SEVERE DISEASE, refer URGENTLY. Unchanged from the March 2014 edition.
 
 **Phrasings this rule catches:**
 
