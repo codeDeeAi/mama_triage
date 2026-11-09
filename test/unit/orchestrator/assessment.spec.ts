@@ -48,6 +48,7 @@ function decision(o: {
     outputTokens: 5,
     latencyMs: 100,
     ungrounded: false,
+    sources: [],
     result: {
       detected_language: o.language ?? 'en',
       pathway: 'neonatal',
@@ -389,5 +390,71 @@ describe('runAssessmentTurn — the state machine drives the questions', () => {
       }),
     );
     expect(seen).toBeUndefined();
+  });
+});
+
+describe('runAssessmentTurn — infant age scope (0 to 59 days)', () => {
+  it('refers a baby older than 59 days instead of concluding self-care', async () => {
+    const events: string[] = [];
+    const out = await runAssessmentTurn(
+      deps({
+        decision: decision({ urgency: 'self_care', slots: { age_days: 90 } }),
+        onAudit: (e) => events.push(e),
+      }),
+      input(),
+    );
+    expect(out.urgency).toBe('facility_visit');
+    expect(out.decision?.escalatedBy).toBe('age_scope');
+    expect(out.state).toBe('completed');
+    expect(out.messages[0]).toMatch(/only check babies under 2 months/);
+    expect(out.messages[0]).not.toMatch(/All seems well/);
+    expect(events).toContain('INFANT_AGE_OUT_OF_SCOPE');
+  });
+
+  it('applies when the age was established on an earlier turn', async () => {
+    const out = await runAssessmentTurn(
+      deps({
+        decision: decision({
+          urgency: 'self_care',
+          action: { type: 'ask', domain: 'feeding', question: 'Is your baby feeding?' },
+        }),
+      }),
+      input({ knownSlots: { age_days: 120 } }),
+    );
+    expect(out.urgency).toBe('facility_visit');
+    expect(out.state).toBe('completed');
+  });
+
+  it('answers in Pidgin when the mother writes in Pidgin', async () => {
+    const out = await runAssessmentTurn(
+      deps({ decision: decision({ urgency: 'self_care', slots: { age_days: 70 }, language: 'pcm' }) }),
+      input({ language: 'pcm' }),
+    );
+    expect(out.messages[0]).toMatch(/pikin wey never reach 2 months/);
+  });
+
+  it('keeps an emergency unchanged for an older baby', async () => {
+    const out = await runAssessmentTurn(
+      deps({ decision: decision({ urgency: 'emergency', slots: { age_days: 200 } }) }),
+      input(),
+    );
+    expect(out.urgency).toBe('emergency');
+    expect(out.decision?.escalatedBy).not.toBe('age_scope');
+  });
+
+  it('leaves a 59-day-old baby inside the pathway', async () => {
+    const out = await runAssessmentTurn(
+      deps({ decision: decision({ urgency: 'self_care', slots: { age_days: 59 } }) }),
+      input(),
+    );
+    expect(out.urgency).toBe('self_care');
+  });
+
+  it('does not touch the maternal pathway, where age_days is not the mother', async () => {
+    const out = await runAssessmentTurn(
+      deps({ decision: decision({ urgency: 'self_care', slots: { age_days: 120 } }) }),
+      input({ pathway: 'maternal' }),
+    );
+    expect(out.urgency).toBe('self_care');
   });
 });
