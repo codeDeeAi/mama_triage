@@ -158,6 +158,7 @@ export function renderMarkdown(results: readonly EvalResult[], ctx: ReportContex
   out.push(`| Deterministic red-flag rules | ${s.escalation.rules} |`);
   out.push(`| Second-pass safety check | ${s.escalation.safetyCheck} |`);
   out.push(`| Low-confidence promotion | ${s.escalation.lowConfidence} |`);
+  out.push(`| Infant age scope (over 59 days) | ${s.escalation.ageScope} |`);
   out.push(`| No escalation needed | ${s.escalation.none} |`);
   out.push(
     `| **Under-triages prevented by the safety layers** | **${s.escalation.rescuedByLayers}** |`,
