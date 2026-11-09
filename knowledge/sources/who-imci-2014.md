@@ -5,6 +5,7 @@ publisher: WHO
 version: "March 2014"
 source_uri: https://cdn.who.int/media/docs/default-source/mca-documents/child/imci-integrated-management-of-childhood-illness/imci-in-service-training/imci-chart-booklet.pdf
 retrieved_at: 2026-08-12
+domain: neonatal
 ---
 [[page:1]]
 
