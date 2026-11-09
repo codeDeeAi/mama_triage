@@ -37,6 +37,14 @@ export interface RedFlagRule {
   /** Slot clause: if any listed slot holds the listed value, the rule fires. */
   slot?: Partial<Record<keyof Slots, string | number>>;
   /**
+   * Compound slot clause, for criteria that depend on more than one slot at once.
+   *
+   * `slot` above is a disjunction over single values, which cannot express a guideline
+   * criterion such as "jaundice present AND age under 24 hours". Keep the predicate
+   * small and pure; it is reviewed by reading it, like a pattern.
+   */
+  slotWhen?: (slots: Slots) => boolean;
+  /**
    * Representative phrasings this rule is meant to catch, in plain language.
    *
    * These are what the clinical reviewer actually reads — regular expressions are not a
@@ -440,6 +448,50 @@ const NEONATAL_RULES: RedFlagRule[] = [
       'author, cross-referenced to South Africa IMCI Chart Booklet 2022 (WHO-derived) after the WHO 2014 degree values were lost in extraction — NOT clinician sign-off',
   },
   {
+    id: 'NEO_JAUNDICE_EARLY',
+    label: 'Jaundice in the first day of life',
+    pathway: 'neonatal',
+    urgency: 'emergency',
+    // Any jaundice under 24 hours of age is SEVERE JAUNDICE in the IMCI young-infant chart,
+    // regardless of where it is visible. The register previously carried only the
+    // palms-and-soles criterion (NEO_JAUNDICE_SEVERE) and the face-only follow-up tier
+    // (NEO_JAUNDICE_FACE), so a baby born yesterday with yellow skin was routed to a
+    // facility visit in every run of the 9 November 2026 evaluation (NEO-022). This rule
+    // closes that gap. "Born yesterday" is a lay proxy for under 24 hours and is
+    // deliberately generous: the rule also fires at age_days = 1.
+    slotWhen: (slots) =>
+      slots.jaundice !== undefined &&
+      slots.jaundice !== 'none' &&
+      typeof slots.age_days === 'number' &&
+      slots.age_days <= 1,
+    // The span between the age cue and the colour word may not contain a negation cue, so
+    // "born yesterday and is not yellow" does not fire (the negation guard only looks
+    // before a match, and a negation inside a match is treated as part of the sign).
+    patterns: [
+      // jaundice/yellow ... born today/yesterday/last night, or hours old
+      /(?:yellow|jaundice)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,60}\b(?:born|delivered)\s+(?:\w+\s+){0,2}(?:today|yesterday|last\s+night|this\s+morning|tonight)/i,
+      /\b(?:born|delivered)\s+(?:\w+\s+){0,2}(?:today|yesterday|last\s+night|this\s+morning|tonight)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,60}(?:yellow|jaundice)/i,
+      /(?:yellow|jaundice)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,60}\b(?:\d{1,2}|a\s+few|some|several)\s+hours?\s+old/i,
+      /\b(?:\d{1,2}|a\s+few|some|several)\s+hours?\s+old(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,60}(?:yellow|jaundice)/i,
+      /(?:yellow|jaundice)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,40}\b(?:just|newly|only\s+just)\s+born/i,
+      /\b(?:just|newly)\s+born(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,40}(?:yellow|jaundice)/i,
+      // Pidgin: "I born am yesterday, e don yellow" / "pikin wey I born today dey yellow"
+      /\bborn\s+(?:am\s+)?(?:today|yesterday|last\s+night)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,40}(?:yellow|don\s+yellow)/i,
+      /(?:yellow|don\s+yellow)(?:(?!\b(?:not|no|never|isn't|ain't)\b)[^.]){0,40}\bborn\s+(?:am\s+)?(?:today|yesterday|last\s+night)/i,
+    ],
+    examples: [
+      'she was born yesterday evening and already looks yellow today',
+      'he is only a few hours old and his skin is yellow',
+      'I born am yesterday and e don yellow',
+      'the baby was just born and already has jaundice',
+    ],
+    source:
+      'WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, \'Check for jaundice\' — \'Any jaundice if age less than 24 hours\' → SEVERE JAUNDICE, refer URGENTLY to hospital',
+    verified: true,
+    verifiedBy:
+      'author, traced to WHO IMCI Chart Booklet (March 2014) retrieved from who.int — NOT clinician sign-off. Added 9 November 2026 after the repeated-run evaluation found scenario NEO-022 under-triaged in 5 of 5 runs.',
+  },
+  {
     id: 'NEO_JAUNDICE_SEVERE',
     label: 'Jaundice extending to palms or soles',
     pathway: 'neonatal',
@@ -642,7 +694,24 @@ export function matchSlots(slots: Slots, pathway: Pathway = 'unset'): RedFlagHit
   const hits: RedFlagHit[] = [];
 
   for (const rule of RED_FLAGS) {
-    if (!rule.slot || !ruleApplies(rule, pathway)) continue;
+    if (!ruleApplies(rule, pathway)) continue;
+
+    if (rule.slotWhen?.(slots)) {
+      hits.push({
+        id: rule.id,
+        urgency: rule.urgency,
+        pathway: rule.pathway,
+        via: 'slot',
+        evidence: Object.entries(slots)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => `${k}=${String(v)}`)
+          .join(','),
+        source: rule.source,
+      });
+      continue;
+    }
+
+    if (!rule.slot) continue;
 
     for (const [key, expected] of Object.entries(rule.slot)) {
       const actual = slots[key as keyof Slots];
