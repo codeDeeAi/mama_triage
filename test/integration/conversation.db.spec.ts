@@ -243,7 +243,8 @@ describe('full conversation', () => {
     const c = ctx(assessment);
 
     await reachAssessing(c);
-    await c.send('call me on 08031234567, baby not feeding well');
+    // No danger sign in the message, so retrieval runs rather than an emergency short-circuit.
+    await c.send('call me on 08031234567, she has a small rash on her cheek');
 
     expect(seen.at(-1)).toBeDefined();
     expect(seen.at(-1)).not.toContain('08031234567');
