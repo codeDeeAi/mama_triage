@@ -26,6 +26,7 @@ import { getConfig } from '../config';
 import { createDb } from '../db/pool';
 import { VoyageEmbedder } from './embed';
 import { ingest, sha256 } from './ingest';
+import { PCPNC_FILE, fetchPcpnc } from './fetchPcpnc';
 
 export interface IndexFileShape {
   embeddingModel?: string;
@@ -64,6 +65,38 @@ export function indexIsCurrent(
   return files.every((f) => known.has(sha256(readFileSync(join(corpusDir, f), 'utf8'))));
 }
 
+/**
+ * Make sure the WHO PCPNC chapters are in the corpus before the index is checked.
+ *
+ * The Docker image fetches PCPNC at build time, but a deployment built another way (a
+ * buildpack running `npm start`, for instance) starts from the repository alone, where
+ * the file is git-ignored because WHO's text may not be redistributed. Without this the
+ * index is built, and reported current, from the other sources only, and every maternal
+ * assessment retrieves from the wrong guidance while looking healthy.
+ *
+ * The download is verified against the pinned SHA-256 (see fetchPcpnc). On failure the
+ * service still starts, because the deterministic safety layer must keep running, but
+ * the failure is logged loudly; set PCPNC_REQUIRED=true to refuse to start instead.
+ */
+export async function ensurePcpnc(
+  corpusDir: string,
+  fetcher: (dir: string) => Promise<string> = fetchPcpnc,
+  log: (m: string) => void = (m) => process.stdout.write(`${m}\n`),
+): Promise<'present' | 'fetched' | 'failed'> {
+  if (existsSync(join(corpusDir, PCPNC_FILE))) return 'present';
+  try {
+    const path = await fetcher(corpusDir);
+    log(`WHO PCPNC (2015): fetched and verified, written to ${path}.`);
+    return 'fetched';
+  } catch (err) {
+    log(
+      `WARNING: WHO PCPNC (2015) could not be fetched, so maternal retrieval will not ` +
+        `cover it. ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return 'failed';
+  }
+}
+
 /** Resolve the configured index path, which may name the file or its directory. */
 export function resolveIndexPath(chromaPath: string): string {
   return chromaPath.endsWith('.json') ? chromaPath : join(chromaPath, 'index.json');
@@ -82,6 +115,14 @@ async function main(): Promise<void> {
   const chromaPath = config.rag?.chromaPath ?? process.env.CHROMA_PATH ?? './knowledge/index';
   const embeddingModel = config.rag?.embeddingModel ?? process.env.EMBEDDING_MODEL ?? 'voyage-4-lite';
   const indexPath = resolveIndexPath(chromaPath);
+
+  if (process.env.PCPNC_FETCH !== 'false') {
+    const pcpnc = await ensurePcpnc(corpusDir);
+    if (pcpnc === 'failed' && process.env.PCPNC_REQUIRED === 'true') {
+      process.stderr.write('FATAL: PCPNC_REQUIRED=true and WHO PCPNC is not in the corpus.\n');
+      process.exit(1);
+    }
+  }
 
   if (indexIsCurrent(indexPath, corpusDir, embeddingModel)) {
     process.stdout.write(`Knowledge index: current (${indexPath}).\n`);
