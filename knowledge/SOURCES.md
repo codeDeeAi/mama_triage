@@ -29,11 +29,19 @@ The raw PDF is kept in `knowledge/raw/` (git-ignored) so extraction is repeatabl
 |---|---|---|
 | IMCI Chart Booklet (March 2014) — includes sick young infant 0–2 months | WHO | ✅ obtained, extracted, indexed |
 | IMCI — sick child 2 months to 5 years | WHO | ✅ same document |
+| Pregnancy, Childbirth, Postpartum and Newborn Care, 3rd ed. (2015) — postpartum chapters B, D21–D28, E, J9 | WHO | ✅ fetched and hash-verified at build time (`src/rag/fetchPcpnc.ts`); not committed, because its text may not be redistributed |
+| National guideline for the management of postpartum haemorrhage (2024) | FMOH Nigeria | ✅ obtained, extracted, indexed |
 | Basic Emergency Obstetric and Newborn Care (BEmONC) protocols | FMOH Nigeria | ⬜ to obtain |
 | National guidelines for postnatal care | FMOH Nigeria | ⬜ to obtain |
 
 Ask your supervisor which FMOH edition the department can supply directly — sourcing the
 correct Nigerian protocol edition is the item on this list most likely to slip.
+
+## Clinical domain
+
+Every source sets `domain:` in its front matter (`maternal`, `neonatal` or `unset`). It
+overrides per-section keyword inference, so a passage from a document written for one
+population can never be retrieved into the other pathway's assessment.
 
 ## Format
 
