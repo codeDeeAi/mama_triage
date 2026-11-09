@@ -33,7 +33,7 @@ function assessment(urgency: Urgency = 'self_care'): AssessmentDeps {
         urgency, urgencyLlm: urgency, urgencyRules: null, escalatedBy: null,
         redFlags: [], slots: {}, citations: [{ chunk_id: 'placeholder#2', claim: 'c' }],
         model: 'test', promptVersion: 'triage.v1',
-        inputTokens: 10, outputTokens: 5, latencyMs: 50, ungrounded: false,
+        inputTokens: 10, outputTokens: 5, latencyMs: 50, ungrounded: false, sources: [],
         result: {
           detected_language: 'en', pathway: 'neonatal', extracted_slots: {},
           red_flags: [], urgency, confidence: 'high',
@@ -146,8 +146,28 @@ describe('POST /admin/simulate', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.urgency).toBe('self_care');
+    expect(res.body.status).toBe('concluded');
+    expect(res.body.confidence).toBe('high');
+    expect(res.body.ungrounded).toBe(false);
     expect(res.body.replies[0]).toContain('CARE AT HOME');
     expect(res.body.turnsProcessed).toBe(1);
+  });
+
+  it('marks a run that never concluded as unresolved, not as a self-care decision', async () => {
+    const failing: AssessmentDeps = {
+      ...assessment('self_care'),
+      triage: {
+        assess: async () => {
+          throw new Error('model unavailable');
+        },
+      } as never,
+    };
+    const res = await request(app({ isProduction: false, assessment: failing }))
+      .post('/admin/simulate')
+      .send({ pathway: 'neonatal', turns: ['he seems a bit off today'] });
+
+    expect(res.body.status).toBe('unresolved');
+    expect(res.body.fallbackReason).toBeDefined();
   });
 
   it('applies the deterministic safety scan before the model', async () => {
@@ -158,6 +178,7 @@ describe('POST /admin/simulate', () => {
       .send({ pathway: 'neonatal', turns: ['the baby is not feeding at all'] });
 
     expect(res.body.urgency).toBe('emergency');
+    expect(res.body.status).toBe('emergency');
     expect(res.body.redFlags).toContain('NEO_NOT_FEEDING');
     expect(res.body.escalatedBy).toBe('rules');
     expect(res.body.replies[0]).toContain('EMERGENCY');
