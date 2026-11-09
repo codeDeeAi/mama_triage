@@ -16,29 +16,30 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 ## Status
 
-- Rules in register: **20**
-- Traced to a published guideline: **12**
-- 🟠 On SIMULATED review (placeholder, needs you): **8**
+- Rules in register: **21**
+- Traced to a published guideline: **21**
+- 🟠 On SIMULATED review (placeholder, needs you): **0**
 - Not yet reviewed: **0**
 
 ## Summary
 
 | ID | Danger sign | Applies to | Assigned urgency | Assurance |
 |---|---|---|---|---|
-| `MAT_CONVULSION` | Convulsion / fits (possible eclampsia) | Postpartum mother | emergency | 🟠 SIMULATED |
+| `MAT_CONVULSION` | Convulsion / fits (possible eclampsia) | Postpartum mother | emergency | ✅ traced |
 | `MAT_HAEMORRHAGE` | Heavy postpartum bleeding | Postpartum mother | emergency | ✅ traced |
-| `MAT_SEVERE_FEVER` | High fever with chills (possible puerperal sepsis) | Postpartum mother | emergency | 🟠 SIMULATED |
-| `MAT_PREECLAMPSIA_SEVERE` | Severe pre-eclampsia warning signs | Postpartum mother | emergency | 🟠 SIMULATED |
-| `MAT_COLLAPSE` | Loss of consciousness or collapse | Postpartum mother | emergency | 🟠 SIMULATED |
-| `MAT_BREATHING` | Difficulty breathing | Postpartum mother | emergency | 🟠 SIMULATED |
-| `MAT_WOUND_INFECTION` | Wound or perineal infection signs | Postpartum mother | facility_visit | 🟠 SIMULATED |
-| `MAT_FOUL_LOCHIA` | Foul-smelling vaginal discharge | Postpartum mother | facility_visit | 🟠 SIMULATED |
-| `MAT_MASTITIS` | Breast infection signs | Postpartum mother | facility_visit | 🟠 SIMULATED |
+| `MAT_SEVERE_FEVER` | High fever with chills (possible puerperal sepsis) | Postpartum mother | emergency | ✅ traced |
+| `MAT_PREECLAMPSIA_SEVERE` | Severe pre-eclampsia warning signs | Postpartum mother | emergency | ✅ traced |
+| `MAT_COLLAPSE` | Loss of consciousness or collapse | Postpartum mother | emergency | ✅ traced |
+| `MAT_BREATHING` | Difficulty breathing | Postpartum mother | emergency | ✅ traced |
+| `MAT_WOUND_INFECTION` | Wound or perineal infection signs | Postpartum mother | facility_visit | ✅ traced |
+| `MAT_FOUL_LOCHIA` | Foul-smelling vaginal discharge | Postpartum mother | facility_visit | ✅ traced |
+| `MAT_MASTITIS` | Breast infection signs | Postpartum mother | facility_visit | ✅ traced |
 | `NEO_NOT_FEEDING` | Not feeding / unable to suck | Newborn / young infant | emergency | ✅ traced |
 | `NEO_BREATHING_SEVERE` | Severe respiratory distress / apnoea | Newborn / young infant | emergency | ✅ traced |
 | `NEO_CONVULSION` | Neonatal convulsion | Newborn / young infant | emergency | ✅ traced |
 | `NEO_LETHARGY` | Lethargic or unresponsive | Newborn / young infant | emergency | ✅ traced |
 | `NEO_TEMP_EXTREME` | Fever or hypothermia in a young infant | Newborn / young infant | emergency | ✅ traced |
+| `NEO_JAUNDICE_EARLY` | Jaundice in the first day of life | Newborn / young infant | emergency | ✅ traced |
 | `NEO_JAUNDICE_SEVERE` | Jaundice extending to palms or soles | Newborn / young infant | emergency | ✅ traced |
 | `NEO_BULGING_FONTANELLE` | Bulging fontanelle | Newborn / young infant | emergency | ✅ traced |
 | `NEO_CORD_INFECTION` | Umbilical cord infection signs | Newborn / young infant | facility_visit | ✅ traced |
@@ -54,9 +55,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — eclampsia / convulsions in pregnancy and postpartum
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart B6 'Emergency signs' — convulsions or unconscious: refer urgently; chart D28 'Advise on when to return' — go to a facility immediately, day or night, for convulsions.
 
 **Phrasings this rule catches:**
 
@@ -103,9 +102,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — puerperal sepsis danger signs
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart B6 'Dangerous fever' (fever >38°C with very fast breathing, stiff neck, lethargy or very weak/unable to stand: refer urgently); chart E6 'If fever or foul-smelling lochia'; chart D28 (go immediately for fever with being too weak to get out of bed; fever alone, as soon as possible). This rule is deliberately MORE cautious than the guide: chills or a reported 'high fever' escalate without an accompanying sign, because the service cannot take a temperature.
 
 **Phrasings this rule catches:**
 
@@ -127,9 +124,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — severe pre-eclampsia warning signs
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart B7 'Priority signs' (severe headache, blurred vision, epigastric pain: measure BP); chart E3 'If elevated diastolic blood pressure' (>=110 mmHg: refer urgently); chart D28 (go immediately for headache with blurred vision). This rule is deliberately MORE cautious than the guide: any one warning sign, including face or hand swelling, escalates, because the service cannot measure blood pressure.
 
 **Phrasings this rule catches:**
 
@@ -152,9 +147,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — shock / loss of consciousness
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart B3 'Circulation (shock)' (cold moist skin, weak fast pulse) and chart B6 'Emergency signs' (unconscious): refer urgently.
 
 **Phrasings this rule catches:**
 
@@ -174,9 +167,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** EMERGENCY — refer immediately
 
-**Proposed source:** VERIFY: FMOH BEmONC — respiratory distress
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart B3 'Airway and breathing' (very difficult breathing or central cyanosis: refer urgently); chart E9 'If cough or breathing difficulty'; chart D28 (go immediately for fast or difficult breathing, shortness of breath or chest pain).
 
 **Phrasings this rule catches:**
 
@@ -196,9 +187,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** VERIFY: FMOH BEmONC — wound infection
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart E7 'If pus or perineal pain' (perineal infection: treat, follow up in 2 days); chart D28 (go as soon as possible for perineal pain or draining pus). Caesarean wounds are not charted separately; the perineal chart is the nearest section.
 
 **Phrasings this rule catches:**
 
@@ -220,9 +209,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** VERIFY: FMOH BEmONC — endometritis
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart E6 'If fever or foul-smelling lochia' (with fever >38°C: uterine infection, refer urgently); chart D28 (go as soon as possible for foul-smelling lochia).
 
 **Phrasings this rule catches:**
 
@@ -241,9 +228,7 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 
 **Assigned urgency:** FACILITY VISIT — seen within 24 hours
 
-**Proposed source:** VERIFY: FMOH BEmONC — mastitis / breast abscess
-
-> 🟠 **This rule is on a simulated review.** No clinician has seen it. Your judgement here replaces a placeholder — please do not assume it has already been checked.
+**Proposed source:** WHO PCPNC, 3rd ed. (2015), chart E8 'If breast problem', which refers to chart J9 (painful, swollen, red part of breast with fever: mastitis, treat and reassess in 2 days); chart D28 (go as soon as possible for swollen, red or tender breasts).
 
 **Phrasings this rule catches:**
 
@@ -371,6 +356,27 @@ Record your decision in the sign-off block under each rule. Where you disagree, 
 - "he feels cold"
 - "baby is hot to touch"
 - "his body is very hot"
+
+| Reviewer question | Response |
+|---|---|
+| Is `emergency` the correct urgency? | ☐ Yes ☐ No — should be: ________ |
+| Correct guideline section | ________________________________ |
+| Missing phrasings to add | ________________________________ |
+| Phrasings that should NOT fire this | ________________________________ |
+| Reviewer name / date | ________________________________ |
+
+## `NEO_JAUNDICE_EARLY` — Jaundice in the first day of life
+
+**Assigned urgency:** EMERGENCY — refer immediately
+
+**Proposed source:** WHO IMCI Chart Booklet (March 2014), Sick Young Infant Age Up To 2 Months, 'Check for jaundice' — 'Any jaundice if age less than 24 hours' → SEVERE JAUNDICE, refer URGENTLY to hospital
+
+**Phrasings this rule catches:**
+
+- "she was born yesterday evening and already looks yellow today"
+- "he is only a few hours old and his skin is yellow"
+- "I born am yesterday and e don yellow"
+- "the baby was just born and already has jaundice"
 
 | Reviewer question | Response |
 |---|---|
