@@ -129,6 +129,9 @@ describe('neonatal emergencies (lexical)', () => {
     ['the baby is cold to touch', 'NEO_TEMP_EXTREME'],
     ['baby is hot to touch', 'NEO_TEMP_EXTREME'],
     ['yellow has reached his palms', 'NEO_JAUNDICE_SEVERE'],
+    ['she was born yesterday evening and already looks yellow today', 'NEO_JAUNDICE_EARLY'],
+    ['he is only a few hours old and his skin is yellow', 'NEO_JAUNDICE_EARLY'],
+    ['I born am yesterday and e don yellow', 'NEO_JAUNDICE_EARLY'],
     ['his soft spot is bulging', 'NEO_BULGING_FONTANELLE'],
   ])('flags %j as %s', (text, expectedId) => {
     expect(ids(text, 'neonatal')).toContain(expectedId);
@@ -469,5 +472,47 @@ describe('assurance level — simulated versus traced', () => {
     ];
 
     expect(simulatedRules(standIn).map((r) => r.id)).toEqual(['SIMULATED']);
+  });
+});
+
+/**
+ * Jaundice in the first 24 hours is SEVERE JAUNDICE in IMCI whatever its extent. Found as
+ * a consistent under-triage of scenario NEO-022 in the repeated-run evaluation of
+ * 9 November 2026: the lexical register had no first-day criterion, and the model routed
+ * it to a facility visit in 5 of 5 runs.
+ */
+describe('NEO_JAUNDICE_EARLY — jaundice in the first day of life', () => {
+  it('fires lexically on born-yesterday phrasing and escalates to emergency', () => {
+    const out = evaluateRedFlags({
+      text: 'she was born yesterday evening and already looks yellow today',
+      pathway: 'neonatal',
+    });
+    expect(out.hits.map((h) => h.id)).toContain('NEO_JAUNDICE_EARLY');
+    expect(out.urgency).toBe('emergency');
+  });
+
+  it('fires from slots when jaundice is present and age_days is 0 or 1', () => {
+    for (const age of [0, 1]) {
+      const slots: Slots = { jaundice: 'face_only', age_days: age };
+      expect(matchSlots(slots, 'neonatal').map((h) => h.id)).toContain('NEO_JAUNDICE_EARLY');
+    }
+  });
+
+  it('does not fire from slots for face-only jaundice after the first day', () => {
+    const slots: Slots = { jaundice: 'face_only', age_days: 5 };
+    const hit = matchSlots(slots, 'neonatal').map((h) => h.id);
+    expect(hit).toContain('NEO_JAUNDICE_FACE');
+    expect(hit).not.toContain('NEO_JAUNDICE_EARLY');
+  });
+
+  it('does not fire when jaundice is absent, whatever the age', () => {
+    const slots: Slots = { jaundice: 'none', age_days: 0 };
+    expect(matchSlots(slots, 'neonatal').map((h) => h.id)).not.toContain('NEO_JAUNDICE_EARLY');
+  });
+
+  it('respects negation', () => {
+    expect(ids('she was born yesterday and is not yellow at all', 'neonatal')).not.toContain(
+      'NEO_JAUNDICE_EARLY',
+    );
   });
 });

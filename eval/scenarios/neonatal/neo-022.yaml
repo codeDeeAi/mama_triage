@@ -10,6 +10,6 @@ turns:
   - "she was born yesterday evening and already looks yellow today"
 expect:
   red_flags_any_of:
+    - "NEO_JAUNDICE_EARLY"
     - "NEO_JAUNDICE_SEVERE"
-    - "NEO_JAUNDICE_FACE"
 notes: "Jaundice under 24 hours of age."
