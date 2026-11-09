@@ -27,7 +27,7 @@ export interface EvalResult {
   latencyMs?: number;
   inputTokens?: number;
   outputTokens?: number;
-  /** 'rules' | 'safety_check' | 'low_confidence' | null */
+  /** 'rules' | 'safety_check' | 'low_confidence' | 'age_scope' | null */
   escalatedBy?: string | null;
   /** What the model proposed unaided. */
   urgencyLlm?: Urgency | null;
@@ -154,6 +154,7 @@ export interface EscalationMetrics {
   rules: number;
   safetyCheck: number;
   lowConfidence: number;
+  ageScope: number;
   none: number;
   /**
    * Cases the deterministic layers rescued: the model alone would have under-triaged,
@@ -178,6 +179,7 @@ export function escalationMetrics(results: readonly EvalResult[]): EscalationMet
     rules: by('rules'),
     safetyCheck: by('safety_check'),
     lowConfidence: by('low_confidence'),
+    ageScope: by('age_scope'),
     none: results.filter((r) => !r.escalatedBy).length,
     rescuedByLayers: rescued,
   };
