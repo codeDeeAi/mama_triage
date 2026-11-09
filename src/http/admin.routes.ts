@@ -25,6 +25,8 @@ import { buildEmergencyMessage } from '../orchestrator/render';
 import { ratchet } from '../safety/ratchet';
 import { runAssessmentTurn, type AssessmentDeps } from '../orchestrator/assessment';
 import type { Retriever } from '../rag/retrieve';
+import type { TriageDecision } from '../llm/triage';
+import { ExtractedSlots } from '../llm/schema';
 import type { Language, Pathway, Slots, Urgency } from '../types';
 import type { Logger } from '../telemetry/logger';
 import { asyncHandler } from './asyncHandler';
@@ -49,6 +51,11 @@ const SimulateRequest = z.object({
 const KbQueryRequest = z.object({
   query: z.string().min(1),
   pathway: z.enum(['maternal', 'neonatal', 'unset']).default('unset'),
+  /**
+   * Optional clinical state. With slots the endpoint answers exactly as an assessment
+   * turn would, including the relevance check; without them it reports similarity only.
+   */
+  slots: ExtractedSlots.partial().optional(),
 });
 
 export function createAdminRouter(deps: AdminDeps): Router {
@@ -103,7 +110,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
 
     const outcome = await deps.retriever.retrieve({
       pathway: parsed.data.pathway as Pathway,
-      slots: {},
+      slots: (parsed.data.slots ?? {}) as Slots,
       message: parsed.data.query,
     });
 
@@ -111,11 +118,16 @@ export function createAdminRouter(deps: AdminDeps): Router {
       query: outcome.query,
       grounded: outcome.grounded,
       topScore: outcome.topScore,
+      relevance: outcome.relevance ?? 'unchecked',
+      dropped: outcome.dropped ?? 0,
       results: outcome.results.map((r) => ({
         chunkId: r.chunk.chunkId,
         score: r.score,
         publisher: r.chunk.publisher,
+        document: r.chunk.documentSlug,
         section: r.chunk.section,
+        pageFrom: r.chunk.pageFrom ?? null,
+        pageTo: r.chunk.pageTo ?? null,
         pathway: r.chunk.pathway,
         excerpt: r.chunk.text.slice(0, 300),
       })),
@@ -152,6 +164,8 @@ export function createAdminRouter(deps: AdminDeps): Router {
     const redFlags = new Set<string>();
     let terminated = false;
     let fallbackReason: string | undefined;
+    let lastDecision: TriageDecision | undefined;
+    let concluded = false;
 
     const started = Date.now();
 
@@ -189,6 +203,8 @@ export function createAdminRouter(deps: AdminDeps): Router {
       slots = outcome.slots;
       if (outcome.urgency) urgency = ratchet(urgency, outcome.urgency);
       if (outcome.decision) {
+        lastDecision = outcome.decision;
+        if (outcome.decision.result.next_action.type === 'conclude') concluded = true;
         urgencyLlm = outcome.decision.urgencyLlm;
         escalatedBy = outcome.decision.escalatedBy ?? escalatedBy;
         for (const f of outcome.decision.redFlags) redFlags.add(f.id);
@@ -202,9 +218,21 @@ export function createAdminRouter(deps: AdminDeps): Router {
       if (outcome.state !== 'assessing') terminated = true;
     }
 
+    // What the run actually ended with. `urgency` keeps its old default of self_care when
+    // nothing was concluded, for compatibility with existing runners; `status` says whether
+    // that urgency was a decision at all. An evaluation must not score a run that never
+    // reached a conclusion as if the system had told the mother to stay at home: the static
+    // fallback she saw tells her to go to a facility if worried and lists the danger signs.
+    const status: 'emergency' | 'concluded' | 'unresolved' =
+      urgency === 'emergency' ? 'emergency' : concluded ? 'concluded' : 'unresolved';
+
     res.json({
       urgency: urgency ?? 'self_care',
+      status,
       urgencyLlm,
+      confidence: lastDecision?.result.confidence ?? null,
+      ungrounded: lastDecision ? lastDecision.ungrounded : null,
+      sources: lastDecision?.sources ?? [],
       escalatedBy,
       redFlags: [...redFlags],
       slots,
