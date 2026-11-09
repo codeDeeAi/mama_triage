@@ -105,9 +105,37 @@ export function renderDecision(decision: TriageDecision): string[] {
     lines.push('');
   }
 
+  lines.push(provenanceLine(decision, language));
+  lines.push('');
+
   lines.push(disclaimer(language));
 
   return [lines.join('\n')];
+}
+
+/**
+ * Tell the mother what the advice rests on.
+ *
+ * Advice drawn from a guideline passage and advice from the model's general knowledge are
+ * different things, and she is entitled to know which she is reading. A grounded
+ * conclusion names the guideline and page it cites; an ungrounded one says plainly that
+ * no matching passage was found.
+ */
+export function provenanceLine(decision: TriageDecision, language: Language): string {
+  const source = decision.sources?.[0];
+  if (decision.ungrounded || !source) {
+    return language === 'pcm'
+      ? '_I no find correct part for di health guidelines wey I dey use for dis matter, so dis na general advice. Make health worker confirm am._'
+      : '_I could not find a matching passage in the health guidelines I use, so this is general advice. Please have a health worker confirm it._';
+  }
+  const year = source.docVersion ? ` (${source.docVersion.replace(/^.*?(\d{4}).*$/, '$1')})` : '';
+  const section = source.section.split('>').pop()?.trim() ?? source.section;
+  const page =
+    source.pageFrom !== undefined
+      ? `, p. ${source.pageFrom}${source.pageTo && source.pageTo !== source.pageFrom ? `–${source.pageTo}` : ''}`
+      : '';
+  const label = `${source.publisher}${year}, ${section}${page}`;
+  return language === 'pcm' ? `_Dis advice follow: ${label}._` : `_This advice follows: ${label}._`;
 }
 
 /**
