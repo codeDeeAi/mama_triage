@@ -46,6 +46,7 @@ function deps(script: {
         model: 'test-model', promptVersion: 'triage.v1',
         inputTokens: 100, outputTokens: 40, latencyMs: 800,
         ungrounded: false,
+        sources: [],
         result: {
           detected_language: 'en', pathway: 'neonatal',
           extracted_slots: script.slots ?? {}, red_flags: [],
