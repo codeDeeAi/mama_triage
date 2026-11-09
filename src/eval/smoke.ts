@@ -69,6 +69,7 @@ export function brokenModelDeps(): AssessmentDeps {
         outputTokens: 0,
         latencyMs: 0,
         ungrounded: false,
+        sources: [],
         result: {
           detected_language: 'en',
           pathway: 'neonatal',
