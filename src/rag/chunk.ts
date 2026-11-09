@@ -178,6 +178,17 @@ export interface ChunkDocumentInput {
   title: string;
   publisher: string;
   docVersion?: string;
+  /**
+   * The clinical domain of the whole document, from its front matter. When set it
+   * overrides per-section inference for every chunk.
+   *
+   * Inference from keywords alone left most of the IMCI booklet tagged `unset` — its
+   * sections on the sick child say nothing that marks them as infant-only — and an
+   * `unset` chunk is eligible for both pathways. So a mother's fever query was answered
+   * with child-fever passages and reported as grounded. A document written for one
+   * population is that population's guidance, whatever words a section happens to use.
+   */
+  domain?: Pathway;
 }
 
 /**
@@ -236,7 +247,7 @@ export function chunkDocument(input: ChunkDocumentInput, opts: ChunkOptions = {}
       ...(input.docVersion ? { docVersion: input.docVersion } : {}),
       section,
       ...(pages.length > 0 ? { pageFrom: Math.min(...pages), pageTo: Math.max(...pages) } : {}),
-      pathway: inferPathway(`${section}\n${body}`),
+      pathway: input.domain ?? inferPathway(`${section}\n${body}`),
       topics: inferTopics(`${section}\n${body}`),
       tokenCount: estimateTokens(text),
       text,
