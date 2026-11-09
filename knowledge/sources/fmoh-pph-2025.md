@@ -5,6 +5,7 @@ publisher: FMOH Nigeria
 version: "2025"
 source_uri: https://health.gov.ng/wp-content/uploads/2025/07/National-guideline-on-PPH-PRINTED-FINAL.pdf
 retrieved_at: 2026-08-12
+domain: maternal
 ---
 [[page:1]]
 
