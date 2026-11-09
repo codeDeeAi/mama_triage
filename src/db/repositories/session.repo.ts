@@ -170,6 +170,21 @@ export class SessionRepository {
     return (await this.db.one<SessionRow>(`SELECT * FROM sessions WHERE id = $1`, [id])) ?? null;
   }
 
+  /**
+   * Delete sessions inactive for longer than `days`, with their outcomes and any remaining
+   * messages (ON DELETE CASCADE). Audit events and follow-ups keep their rows with the
+   * session reference nulled (ON DELETE SET NULL), so safety counts survive.
+   */
+  async purgeInactiveOlderThan(days: number): Promise<number> {
+    const rows = await this.db.query<{ id: string }>(
+      `DELETE FROM sessions
+        WHERE last_activity_at < NOW() - ($1 || ' days')::interval
+        RETURNING id`,
+      [String(days)],
+    );
+    return rows.length;
+  }
+
   /** Mark stale non-terminal sessions abandoned. Run periodically. */
   async expireStale(ttlMinutes: number): Promise<number> {
     const rows = await this.db.query<{ id: string }>(
