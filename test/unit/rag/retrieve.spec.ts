@@ -1,4 +1,4 @@
-import { buildQuery, renderContext, Retriever } from '../../../src/rag/retrieve';
+import { buildQuery, evidenceTerms, renderContext, Retriever } from '../../../src/rag/retrieve';
 import { buildIndex, MemoryVectorStore } from '../../../src/rag/store';
 import type { EmbeddedChunk, SearchResult } from '../../../src/rag/types';
 import type { Pathway } from '../../../src/types';
@@ -242,7 +242,8 @@ describe('renderContext', () => {
 
   it('tells the model explicitly when nothing was retrieved', () => {
     const out = renderContext([]);
-    expect(out).toMatch(/NO CLINICAL GUIDANCE RETRIEVED/);
+    expect(out).toMatch(/NO RELEVANT CLINICAL GUIDANCE RETRIEVED/);
+    expect(out).toMatch(/do not invent a source/i);
     expect(out).toMatch(/more cautious/i);
   });
 
@@ -251,5 +252,79 @@ describe('renderContext', () => {
     const out = renderContext(two);
     expect(out).toContain('[1]');
     expect(out).toContain('[2]');
+  });
+});
+
+describe('Retriever — relevance is checked, not inferred from similarity', () => {
+  /** A chunk with chosen text and embedding, maternal by default. */
+  function passage(id: string, text: string, embedding: number[], pathway: Pathway = 'maternal'): EmbeddedChunk {
+    return { ...chunk(id, embedding, pathway), text };
+  }
+
+  const store = new MemoryVectorStore(
+    buildIndex(
+      [
+        // Very similar to the query, but about the wrong thing.
+        passage('imci#9', 'Sick child: does the child have fever? Classify fever.', [1, 0, 0], 'unset'),
+        passage('pcpnc#4', 'Postpartum care: foul-smelling lochia with fever, uterine infection.', [0.9, 0.3, 0]),
+        passage('pph#2', 'Active management of the third stage of labour.', [0.95, 0.1, 0]),
+      ],
+      'voyage-3',
+      [],
+    ),
+  );
+
+  it('drops a similar passage that does not mention the presenting sign', async () => {
+    const r = new Retriever(store, fixedEmbedder([1, 0, 0]));
+    const out = await r.retrieve({
+      pathway: 'maternal',
+      slots: { wound: 'discharge_or_foul_odour' },
+      message: 'stitches smell',
+    });
+    expect(out.relevance).toBe('checked');
+    expect(out.results.map((x) => x.chunk.chunkId)).toEqual([]);
+    expect(out.grounded).toBe(false);
+    expect(out.dropped).toBeGreaterThan(0);
+  });
+
+  it('keeps a passage that names the sign, and is grounded on it', async () => {
+    const r = new Retriever(store, fixedEmbedder([1, 0, 0]));
+    const out = await r.retrieve({
+      pathway: 'maternal',
+      slots: { fever: 'high_with_chills' },
+      message: 'hot body',
+    });
+    const ids = out.results.map((x) => x.chunk.chunkId);
+    expect(ids).toContain('pcpnc#4');
+    expect(ids).not.toContain('pph#2');
+    expect(out.grounded).toBe(true);
+  });
+
+  it('is not grounded when the only relevant passage is below the floor', async () => {
+    const r = new Retriever(store, fixedEmbedder([0, 0, 1]));
+    const out = await r.retrieve({ pathway: 'maternal', slots: { fever: 'mild' }, message: 'x' });
+    expect(out.grounded).toBe(false);
+  });
+
+  it('falls back to similarity alone, and says so, before any sign is known', async () => {
+    const r = new Retriever(store, fixedEmbedder([1, 0, 0]));
+    const out = await r.retrieve({ pathway: 'maternal', slots: {}, message: 'hello' });
+    expect(out.relevance).toBe('unchecked');
+    expect(out.results.length).toBeGreaterThan(0);
+  });
+
+  it('uses the domain being asked when every finding so far is normal', async () => {
+    const terms = evidenceTerms({
+      pathway: 'maternal',
+      slots: { bleeding: 'normal_lochia' },
+      message: '',
+      activeSlot: 'breast',
+    });
+    expect(terms).toHaveLength(1);
+    expect(terms[0]!.test('mastitis')).toBe(true);
+  });
+
+  it('needs no evidence for a normal finding', () => {
+    expect(evidenceTerms({ pathway: 'neonatal', slots: { breathing: 'normal' }, message: '' })).toEqual([]);
   });
 });
