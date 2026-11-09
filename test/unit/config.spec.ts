@@ -32,7 +32,7 @@ describe('parseConfig — happy path', () => {
     expect(cfg.llm?.timeoutMs).toBe(15000);
     expect(cfg.rag?.topK).toBe(5);
     expect(cfg.behaviour.sessionTtlMinutes).toBe(60);
-    expect(cfg.behaviour.promptVersion).toBe('triage.v1');
+    expect(cfg.behaviour.promptVersion).toBe('triage.v2');
   });
 
   it('coerces numeric strings to numbers', () => {
