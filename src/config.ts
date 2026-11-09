@@ -107,7 +107,11 @@ const schema = z.object({
 
   // Behaviour
   SESSION_TTL_MINUTES: intString('SESSION_TTL_MINUTES').default('60'),
-  PROMPT_VERSION: z.string().min(1).default('triage.v1'),
+  // Retention. Conversation text is deleted 90 days after a session's last activity; the
+  // pseudonymised session and its structured outcome are deleted after a year.
+  TRANSCRIPT_RETENTION_DAYS: intString('TRANSCRIPT_RETENTION_DAYS').default('90'),
+  OUTCOME_RETENTION_DAYS: intString('OUTCOME_RETENTION_DAYS').default('365'),
+  PROMPT_VERSION: z.string().min(1).default('triage.v2'),
 });
 
 export type RawConfig = z.infer<typeof schema>;
@@ -163,7 +167,12 @@ export interface Config {
     topK: number;
   };
   privacy: { phoneHashPepper: string };
-  behaviour: { sessionTtlMinutes: number; promptVersion: string };
+  behaviour: {
+    sessionTtlMinutes: number;
+    promptVersion: string;
+    transcriptRetentionDays: number;
+    outcomeRetentionDays: number;
+  };
 }
 
 /**
@@ -288,6 +297,8 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
     behaviour: {
       sessionTtlMinutes: c.SESSION_TTL_MINUTES,
       promptVersion: c.PROMPT_VERSION,
+      transcriptRetentionDays: c.TRANSCRIPT_RETENTION_DAYS,
+      outcomeRetentionDays: c.OUTCOME_RETENTION_DAYS,
     },
   };
 }

@@ -32,3 +32,5 @@ IMPLEMENTATION_PLAN.md
 
 # docs/ is tracked. It was ignored wholesale once, with the files that mattered
 # force-added past the rule — which silently dropped every new doc from commits.
+# Fetched and verified at build time; WHO text may not be redistributed (src/rag/fetchPcpnc.ts).
+knowledge/sources/who-pcpnc-2015.md

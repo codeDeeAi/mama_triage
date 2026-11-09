@@ -18,7 +18,11 @@ export interface RecordOutcomeInput {
   escalatedBy: string | null;
   redFlags: RedFlagHit[];
   slots: Slots;
-  citations: Array<{ chunk_id: string; claim: string }>;
+  /**
+   * Each citation with the provenance of the passage it names (publisher, section, pages),
+   * or `ungrounded: true` on every entry when no relevant passage supported the decision.
+   */
+  citations: Array<{ chunk_id: string; claim: string } & Record<string, unknown>>;
   rationale: string;
   model: string;
   promptVersion: string;

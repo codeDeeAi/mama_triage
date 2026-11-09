@@ -39,6 +39,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY knowledge/sources ./knowledge/sources
 COPY package.json ./
+# WHO PCPNC (2015) is fetched from WHO's repository and verified against a pinned SHA-256
+# rather than committed, because its text may not be redistributed. A failed download or
+# a changed document fails the build: an image must not quietly ship a different
+# knowledge base from the one the evaluation used. See src/rag/fetchPcpnc.ts.
+RUN node dist/rag/fetchPcpnc.js knowledge/sources
 RUN --mount=type=secret,id=voyage_key,required=false \
     KEY="$(cat /run/secrets/voyage_key 2>/dev/null || echo "$VOYAGE_API_KEY")"; \
     mkdir -p knowledge/index; \
@@ -63,7 +68,8 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 COPY --from=index /app/knowledge/index ./knowledge/index
 # Needed at runtime as well as build time: BUILD_INDEX_ON_BOOT re-embeds from these.
-COPY knowledge/sources ./knowledge/sources
+# Copied from the index stage, which holds the fetched PCPNC chapters as well.
+COPY --from=index /app/knowledge/sources ./knowledge/sources
 COPY views ./views
 COPY prompts ./prompts
 COPY migrations ./migrations

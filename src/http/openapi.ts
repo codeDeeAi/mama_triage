@@ -84,7 +84,7 @@ const schemas = {
     'completed', 'abandoned', 'escalated',
   ]),
   EscalationSource: {
-    ...enumOf(['rules', 'safety_check', 'low_confidence'], 'Which layer raised the urgency; null when none did.'),
+    ...enumOf(['rules', 'safety_check', 'low_confidence', 'age_scope'], 'Which layer raised the urgency; null when none did. age_scope: an infant older than 59 days was referred rather than triaged.'),
     nullable: true,
   },
   FallbackReason: enumOf([
@@ -506,6 +506,11 @@ const schemas = {
     properties: {
       query: { type: 'string', minLength: 1, example: 'baby not feeding and hot' },
       pathway: { ...enumOf(['unset', 'maternal', 'neonatal']), default: 'unset' },
+      slots: {
+        type: 'object',
+        additionalProperties: true,
+        description: 'Optional clinical slots, e.g. {"fever":"high_with_chills"}; enables the relevance check.',
+      },
     },
   },
   KbResult: {
@@ -515,7 +520,10 @@ const schemas = {
       chunkId: { type: 'string', example: 'who-imci#12' },
       score: { type: 'number', description: 'Similarity score.' },
       publisher: { type: 'string', example: 'WHO' },
+      document: { type: 'string', example: 'who-pcpnc-2015' },
       section: { type: 'string' },
+      pageFrom: { type: 'integer', nullable: true },
+      pageTo: { type: 'integer', nullable: true },
       pathway: { type: 'string' },
       excerpt: { type: 'string', description: 'First 300 characters of the chunk.' },
     },
@@ -525,8 +533,15 @@ const schemas = {
     required: ['query', 'grounded', 'topScore', 'results', 'indexSize'],
     properties: {
       query: { type: 'string', description: 'The query actually embedded (may be rewritten).' },
-      grounded: { type: 'boolean', description: 'Top score cleared the grounding threshold.' },
+      grounded: {
+        type: 'boolean',
+        description:
+          'A passage about the presenting sign was retrieved and cleared the similarity floor. ' +
+          'Without slots, similarity alone decides (relevance "unchecked").',
+      },
       topScore: { type: 'number' },
+      relevance: { type: 'string', enum: ['checked', 'unchecked'] },
+      dropped: { type: 'integer', description: 'Similar passages dropped as not about the sign.' },
       results: { type: 'array', items: ref('KbResult') },
       indexSize: { type: 'integer', nullable: true, description: 'Chunks in the index.' },
     },
@@ -553,9 +568,23 @@ const schemas = {
   },
   SimulateResponse: {
     type: 'object',
-    required: ['urgency', 'urgencyLlm', 'escalatedBy', 'redFlags', 'slots', 'replies', 'turnsProcessed', 'latencyMs'],
+    required: ['urgency', 'status', 'urgencyLlm', 'escalatedBy', 'redFlags', 'slots', 'replies', 'turnsProcessed', 'latencyMs'],
     properties: {
       urgency: ref('Urgency'),
+      status: {
+        type: 'string',
+        enum: ['emergency', 'concluded', 'unresolved'],
+        description:
+          'unresolved: no conclusion was reached (for example the static fallback was sent); ' +
+          '`urgency` then defaults to self_care and must not be scored as a self-care decision.',
+      },
+      confidence: { type: 'string', enum: ['low', 'medium', 'high'], nullable: true },
+      ungrounded: { type: 'boolean', nullable: true, description: 'No relevant guideline passage supported the last decision.' },
+      sources: {
+        type: 'array',
+        description: 'Guideline passages the last decision cited: publisher, section and pages.',
+        items: { type: 'object', additionalProperties: true },
+      },
       urgencyLlm: {
         ...schemas_Urgency(),
         nullable: true,

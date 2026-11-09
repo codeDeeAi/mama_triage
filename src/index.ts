@@ -366,7 +366,8 @@ async function main(): Promise<void> {
     logger.info({ port: config.port }, 'listening');
   });
 
-  // Housekeeping: expire stale sessions and purge the idempotency ledger.
+  // Housekeeping: expire stale sessions, purge the idempotency ledger, and enforce the
+  // retention periods for transcripts and outcomes.
   const housekeeping = setInterval(
     () => {
       void (async () => {
@@ -374,8 +375,14 @@ async function main(): Promise<void> {
           const expired = await sessions.expireStale(config.behaviour.sessionTtlMinutes);
           const purged = await events.purgeOlderThan(7);
           const addresses = await followUps.purgeStaleRecipients();
-          if (expired || purged || addresses) {
-            logger.debug({ expired, purged, addresses }, 'housekeeping');
+          const transcripts = await messages.purgeTranscriptsOlderThan(
+            config.behaviour.transcriptRetentionDays,
+          );
+          const retired = await sessions.purgeInactiveOlderThan(
+            config.behaviour.outcomeRetentionDays,
+          );
+          if (expired || purged || addresses || transcripts || retired) {
+            logger.info({ expired, purged, addresses, transcripts, retired }, 'housekeeping');
           }
         } catch (err) {
           logger.error({ err }, 'housekeeping failed');

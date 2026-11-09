@@ -16,6 +16,7 @@ import type { SafetyCheckService } from '../llm/safetyCheck';
 import type { TriageDecision, TriageService } from '../llm/triage';
 import type { Retriever } from '../rag/retrieve';
 import type { Language, Pathway, Slots, Urgency } from '../types';
+import { applyInfantAgeScope, isBeyondInfantScope } from './ageScope';
 import { nextDomain } from './pathways';
 import { nextState, renderDecision } from './render';
 
@@ -67,7 +68,7 @@ export async function runAssessmentTurn(
       pathway: input.pathway,
       slots: input.knownSlots,
       message: input.message,
-      ...(domain ? { activeDomain: domain.label } : {}),
+      ...(domain ? { activeDomain: domain.label, activeSlot: domain.slot } : {}),
     });
   } catch (err) {
     audit('RETRIEVAL_FAILED', { error: err instanceof Error ? err.message : String(err) });
@@ -134,14 +135,28 @@ export async function runAssessmentTurn(
   // Re-render against the final urgency so the banner and the referral directive match
   // what was actually decided. Without this, an escalation by the safety check would
   // raise the recorded urgency while the mother still saw a green "care at home" banner.
-  const effective: TriageDecision = escalated
+  const checked: TriageDecision = escalated
     ? { ...decision, urgency: finalUrgency, escalatedBy: 'safety_check' }
     : decision;
+
+  // Infant age scope. The infant pathway is built on the WHO young-infant chart (0 to 59
+  // days); for an older baby the system refers rather than triages, and never concludes
+  // self-care. See ageScope.ts. Applied after every other layer, so it can only raise.
+  const beyondScope =
+    input.pathway === 'neonatal' &&
+    isBeyondInfantScope({ ...input.knownSlots, ...checked.slots });
+  if (beyondScope) {
+    audit('INFANT_AGE_OUT_OF_SCOPE', {
+      age_days: checked.slots.age_days ?? input.knownSlots.age_days,
+      urgency: checked.urgency,
+    });
+  }
+  const effective: TriageDecision = beyondScope ? applyInfantAgeScope(checked) : checked;
 
   return {
     messages: renderDecision(effective),
     state: nextState(effective),
-    urgency: finalUrgency,
+    urgency: effective.urgency,
     slots: effective.slots,
     decision: effective,
     safetyCheckEscalated: escalated,

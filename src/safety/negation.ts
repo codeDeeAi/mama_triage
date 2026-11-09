@@ -67,6 +67,19 @@ export function matchContainsNegation(matchedText: string): boolean {
 export function isNegated(text: string, matchStart: number, matchEnd: number): boolean {
   const matchedText = text.slice(matchStart, matchEnd);
 
+  // A match that spans two clauses pairs a sign in the first clause with a qualifier in
+  // the last ("mild fever for two days but no chills", "eyes a bit yellow, but his palms
+  // are normal"). If that last clause denies the qualifier, the pairing is false and the
+  // rule must not fire: the evaluation found exactly these two sentences escalated to
+  // emergency in every run. Checked before the rule below, because a negation in a later
+  // clause is a denial, not a Pidgin danger sign such as "e no dey chop".
+  // The qualifier's own clause runs on past the match ("his palms | are normal"), so the
+  // rest of that clause is read too.
+  const rest = text.slice(matchEnd, matchEnd + LOOKBACK_CHARS);
+  const restBoundary = rest.search(CLAUSE_BOUNDARY_ONCE);
+  const clauseTail = restBoundary >= 0 ? rest.slice(0, restBoundary) : rest;
+  if (lastClauseDenies(matchedText, clauseTail)) return true;
+
   // The danger sign is the negation ("baby no dey chop"). Never suppress.
   if (matchContainsNegation(matchedText)) return false;
 
@@ -82,6 +95,24 @@ export function isNegated(text: string, matchStart: number, matchEnd: number): b
 
   NEGATION_PATTERN.lastIndex = 0;
   return NEGATION_PATTERN.test(window);
+}
+
+/** Non-global twin of CLAUSE_BOUNDARY, for `String.search`. */
+const CLAUSE_BOUNDARY_ONCE = new RegExp(CLAUSE_BOUNDARY.source, 'i');
+
+/** Words that state a finding is normal, which deny it as surely as "no" does. */
+const NORMALITY_PATTERN = /\b(?:normal|fine|okay|ok|clear|well)\b/i;
+
+/**
+ * True when the matched span crosses a clause boundary and its final clause — the one
+ * holding the qualifying sign — is negated or described as normal.
+ */
+export function lastClauseDenies(matchedText: string, clauseTail = ''): boolean {
+  const boundary = lastIndexOfBoundary(matchedText);
+  if (boundary < 0) return false;
+  const lastClause = matchedText.slice(boundary + 1) + clauseTail;
+  NEGATION_PATTERN.lastIndex = 0;
+  return NEGATION_PATTERN.test(lastClause) || NORMALITY_PATTERN.test(lastClause);
 }
 
 /** Index of the last clause boundary in `segment`, or -1 if there is none. */

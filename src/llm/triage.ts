@@ -24,7 +24,12 @@ import type { ToolCallClient } from './client';
 import { TriageResult, triageToolSchema } from './schema';
 import { isAssessmentComplete, remainingDomains } from '../orchestrator/pathways';
 
-export type EscalationSource = 'rules' | 'safety_check' | 'low_confidence' | null;
+export type EscalationSource =
+  | 'rules'
+  | 'safety_check'
+  | 'low_confidence'
+  | 'age_scope'
+  | null;
 
 export interface TriageDecision {
   /** Final urgency, after every check. This is what the mother is told. */
@@ -43,8 +48,24 @@ export interface TriageDecision {
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
-  /** True when retrieval found nothing above the similarity floor. */
+  /** True when retrieval found no relevant passage above the similarity floor. */
   ungrounded: boolean;
+  /**
+   * Where each citation came from: document, section and pages of the passage the model
+   * was shown. Empty when the decision is ungrounded. Lets an outcome be traced to a
+   * page of a guideline without re-running retrieval.
+   */
+  sources: CitedSource[];
+}
+
+export interface CitedSource {
+  chunkId: string;
+  publisher: string;
+  title: string;
+  docVersion?: string;
+  section: string;
+  pageFrom?: number;
+  pageTo?: number;
 }
 
 export interface TriageRequest {
@@ -63,7 +84,7 @@ export interface TriageServiceOptions {
   model: string;
   maxTokens: number;
   promptVersion: string;
-  /** Defaults to reading prompts/system.triage.v1.md. */
+  /** Defaults to reading prompts/system.triage.v2.md. */
   systemPrompt?: string;
   promptPath?: string;
   onAudit?: (event: string, detail: Record<string, unknown>) => void;
@@ -88,7 +109,7 @@ export class TriageService {
     this.promptVersion = opts.promptVersion;
     this.systemPrompt =
       opts.systemPrompt ??
-      readFileSync(opts.promptPath ?? 'prompts/system.triage.v1.md', 'utf8');
+      readFileSync(opts.promptPath ?? 'prompts/system.triage.v2.md', 'utf8');
     this.onAudit = opts.onAudit ?? (() => undefined);
   }
 
@@ -308,6 +329,7 @@ export class TriageService {
       outputTokens: call.outputTokens,
       latencyMs: call.latencyMs,
       ungrounded: !req.retrieval.grounded,
+      sources: req.retrieval.grounded ? citedSources(result.citations, req.retrieval) : [],
     };
   }
 }
@@ -319,4 +341,29 @@ export function formatTranscript(
   return transcript
     .map((m) => `${m.role === 'user' ? 'Mother' : 'Assistant'}: ${m.content}`)
     .join('\n');
+}
+
+/** The shown passages the model actually cited, in citation order, without repeats. */
+export function citedSources(
+  citations: ReadonlyArray<{ chunk_id: string }>,
+  retrieval: RetrievalOutcome,
+): CitedSource[] {
+  const shown = new Map(retrieval.results.map((r) => [r.chunk.chunkId, r.chunk]));
+  const out: CitedSource[] = [];
+  const seen = new Set<string>();
+  for (const c of citations) {
+    const chunk = shown.get(c.chunk_id);
+    if (!chunk || seen.has(chunk.chunkId)) continue;
+    seen.add(chunk.chunkId);
+    out.push({
+      chunkId: chunk.chunkId,
+      publisher: chunk.publisher,
+      title: chunk.title,
+      ...(chunk.docVersion ? { docVersion: chunk.docVersion } : {}),
+      section: chunk.section,
+      ...(chunk.pageFrom !== undefined ? { pageFrom: chunk.pageFrom } : {}),
+      ...(chunk.pageTo !== undefined ? { pageTo: chunk.pageTo } : {}),
+    });
+  }
+  return out;
 }

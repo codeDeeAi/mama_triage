@@ -25,7 +25,18 @@ export interface RetrievalContext {
   message: string;
   /** The assessment domain currently being asked about, if any. */
   activeDomain?: string;
+  /** The slot that domain fills, used for the relevance check when nothing is abnormal yet. */
+  activeSlot?: string;
 }
+
+/**
+ * How the relevance of what was retrieved was judged.
+ *
+ *   checked    — at least one presenting sign was known, and only passages that mention it
+ *                were kept;
+ *   unchecked  — nothing was known yet (the first message), so similarity alone decided.
+ */
+export type RelevanceMode = 'checked' | 'unchecked';
 
 export interface RetrievalOutcome {
   results: SearchResult[];
@@ -38,6 +49,10 @@ export interface RetrievalOutcome {
    */
   grounded: boolean;
   topScore: number;
+  /** Always set by `Retriever`; optional so hand-built outcomes in tests stay valid. */
+  relevance?: RelevanceMode;
+  /** Passages that cleared similarity but were dropped as not about the presenting sign. */
+  dropped?: number;
 }
 
 /**
@@ -112,6 +127,53 @@ const SLOT_PHRASES: Record<string, Record<string, string>> = {
   },
 };
 
+/**
+ * Words a passage must contain to count as evidence for a presenting sign.
+ *
+ * Similarity alone is not relevance. Measured on the live index, a postpartum fever query
+ * scored 0.54 against a passage on fever in a sick child, cleared the floor, and was
+ * reported as grounded. Cosine similarity rewards shared vocabulary and register ("fever",
+ * "assess", "refer urgently"), not the same patient. So a passage is kept only if it
+ * names the sign being assessed, in the guideline's own terms, and retrieval is grounded
+ * only if a kept passage also clears the similarity floor.
+ *
+ * Normal findings have no entry: "breathing normally" is not a complaint to find
+ * evidence for, and requiring a passage about it would make every reassuring answer
+ * ungrounded.
+ */
+const EVIDENCE_TERMS: Record<string, RegExp> = {
+  feeding: /\b(?:feed\w*|breastfe\w*|suck\w*|attach\w*)\b/i,
+  temperature: /\b(?:fever|temperature|hypotherm\w*|hot|cold)\b/i,
+  jaundice: /\b(?:jaundice|yellow)\b/i,
+  breathing: /\b(?:breath\w*|respirat\w*|chest indrawing|grunt\w*|apnoea|cyanosis)\b/i,
+  activity: /\b(?:letharg\w*|unconscious|conscious\w*|movement|moves|stimulated|active)\b/i,
+  neonatal_convulsions: /\b(?:convuls\w*|fits?)\b/i,
+  cord_appearance: /\b(?:umbilic\w*|cord)\b/i,
+  bleeding: /\b(?:bleed\w*|haemorrhag\w*|hemorrhag\w*|blood loss|pads?|PPH|clots?)\b/i,
+  fever: /\b(?:fever|temperature|infection|sepsis|chills)\b/i,
+  wound: /\b(?:wound|perine\w*|pus|stitch\w*|sutures?|caesarean|episiotomy)\b/i,
+  breast: /\b(?:breasts?|mastitis|nipples?|engorge\w*)\b/i,
+  preeclampsia: /\b(?:pre-?eclampsia|eclampsia|headache|blood pressure|vision|epigastric|convuls\w*)\b/i,
+  mood_concerns: /\b(?:depress\w*|mood|unhappy|crying|mental|suicid\w*|blues)\b/i,
+};
+
+/** Slot values that describe a normal finding, which needs no supporting passage. */
+const NORMAL_VALUES = new Set(['normal', 'none', 'no', 'alert', 'healing', 'normal_lochia']);
+
+/** The evidence terms for the signs presented so far, or for the domain being asked. */
+export function evidenceTerms(ctx: RetrievalContext): RegExp[] {
+  const terms: RegExp[] = [];
+  for (const [key, value] of Object.entries(ctx.slots)) {
+    if (typeof value !== 'string' || NORMAL_VALUES.has(value)) continue;
+    const term = EVIDENCE_TERMS[key];
+    if (term) terms.push(term);
+  }
+  if (terms.length === 0 && ctx.activeSlot && EVIDENCE_TERMS[ctx.activeSlot]) {
+    terms.push(EVIDENCE_TERMS[ctx.activeSlot]!);
+  }
+  return terms;
+}
+
 /** Compose the text to embed from the current clinical state. */
 export function buildQuery(ctx: RetrievalContext): string {
   const parts: string[] = [];
@@ -178,13 +240,37 @@ export class Retriever {
     const query = buildQuery(ctx);
     const embedding = await this.embedder.embedQuery(query);
 
-    const results = await this.store.search(embedding, {
+    const candidates = await this.store.search(embedding, {
       topK: this.topK,
       pathway: ctx.pathway,
     });
 
+    const terms = evidenceTerms(ctx);
+    if (terms.length === 0) {
+      const topScore = candidates[0]?.score ?? 0;
+      return {
+        results: candidates,
+        query,
+        grounded: topScore >= this.minScore,
+        topScore,
+        relevance: 'unchecked',
+        dropped: 0,
+      };
+    }
+
+    // Keep only passages about a sign she has presented. What is dropped is never shown to
+    // the model, so it cannot be cited: when nothing relevant is left, the model is told
+    // it has no guidance and must abstain from guideline claims (renderContext).
+    const results = candidates.filter((r) => terms.some((t) => t.test(r.chunk.text)));
     const topScore = results[0]?.score ?? 0;
-    return { results, query, grounded: topScore >= this.minScore, topScore };
+    return {
+      results,
+      query,
+      grounded: results.length > 0 && topScore >= this.minScore,
+      topScore,
+      relevance: 'checked',
+      dropped: candidates.length - results.length,
+    };
   }
 
   /**
@@ -212,7 +298,12 @@ export class Retriever {
  */
 export function renderContext(results: readonly SearchResult[]): string {
   if (results.length === 0) {
-    return 'NO CLINICAL GUIDANCE RETRIEVED. You are not grounded: do not make specific clinical claims, and prefer a more cautious urgency level.';
+    return (
+      'NO RELEVANT CLINICAL GUIDANCE RETRIEVED. You are not grounded: no passage about what ' +
+      'she describes was found. Do not state anything as coming from a guideline, do not ' +
+      'invent a source, and prefer a more cautious urgency level. Say in your rationale that ' +
+      'the assessment is ungrounded.'
+    );
   }
 
   return results

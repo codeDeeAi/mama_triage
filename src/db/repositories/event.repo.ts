@@ -81,7 +81,8 @@ export type AuditEvent =
   | 'SAFETY_CHECK_ESCALATED'
   | 'SESSION_ABANDONED'
   | 'COMMAND_USED'
-  | 'WEBHOOK_REJECTED';
+  | 'WEBHOOK_REJECTED'
+  | 'INFANT_AGE_OUT_OF_SCOPE';
 
 export class AuditRepository {
   constructor(private readonly db: Db) {}

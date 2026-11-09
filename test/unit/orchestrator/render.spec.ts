@@ -2,6 +2,7 @@ import {
   buildEmergencyMessage,
   isTerminal,
   nextState,
+  provenanceLine,
   renderDecision,
 } from '../../../src/orchestrator/render';
 import type { TriageDecision } from '../../../src/llm/triage';
@@ -26,6 +27,7 @@ function decision(overrides: {
     outputTokens: 5,
     latencyMs: 100,
     ungrounded: false,
+    sources: [],
     result: {
       detected_language: overrides.language ?? 'en',
       pathway: 'neonatal',
@@ -247,5 +249,38 @@ describe('state transitions', () => {
     });
     expect(nextState(d)).toBe('assessing');
     expect(isTerminal(d)).toBe(false);
+  });
+});
+
+describe('provenanceLine — what the advice rests on', () => {
+  const base = {
+    urgency: 'self_care',
+    ungrounded: false,
+    sources: [
+      {
+        chunkId: 'who-pcpnc-2015#30',
+        publisher: 'WHO',
+        title: 'PCPNC',
+        docVersion: '3rd edition, 2015',
+        section: 'Postpartum care > D28 Advise on when to return',
+        pageFrom: 91,
+        pageTo: 91,
+      },
+    ],
+  } as unknown as Parameters<typeof provenanceLine>[0];
+
+  it('names the guideline, section and page a grounded conclusion cites', () => {
+    expect(provenanceLine(base, 'en')).toBe('_This advice follows: WHO (2015), D28 Advise on when to return, p. 91._');
+  });
+
+  it('says plainly when the advice is general rather than from a guideline', () => {
+    const line = provenanceLine({ ...base, ungrounded: true } as never, 'en');
+    expect(line).toMatch(/could not find a matching passage/);
+    expect(line).toMatch(/general advice/);
+  });
+
+  it('speaks Pidgin when she does', () => {
+    expect(provenanceLine({ ...base, sources: [] } as never, 'pcm')).toMatch(/general advice/);
+    expect(provenanceLine(base, 'pcm')).toMatch(/^_Dis advice follow: WHO \(2015\)/);
   });
 });

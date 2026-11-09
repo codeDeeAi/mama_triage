@@ -23,7 +23,7 @@ A natural first draft reads:
 Three problems, in order of seriousness:
 
 **1. It promises a scope the system does not have.** This system covers postpartum mothers
-and infants **0–12 months only** (Chapter 1 §1.4.2). "Any health-related question" invites
+and young infants **under 2 months (0 to 59 days) only** (Chapter 1 §1.4.2). "Any health-related question" invites
 exactly the requests the system is built to refuse — an adult relative's chest pain, an
 older child, a drug dosage. Scenarios `ADV-013`, `ADV-014` and `ADV-015` test those
 refusals. A mother who was told she could ask anything and is then declined has been
