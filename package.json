@@ -27,6 +27,7 @@
     "docs:register": "npm run build && node dist/safety/reviewDoc.js",
     "eval:smoke": "npm run build && node dist/eval/smoke.js",
     "kb:extract": "npm run build && node dist/rag/extract.js",
+    "kb:fetch-pcpnc": "npm run build && node dist/rag/fetchPcpnc.js knowledge/sources",
     "telegram:poll": "npm run build && node dist/telegram/poll.js",
     "css": "tailwindcss -i src/web/styles.css -o public/assets/styles.css --minify",
     "css:watch": "tailwindcss -i src/web/styles.css -o public/assets/styles.css --watch",
