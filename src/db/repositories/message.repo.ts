@@ -100,4 +100,25 @@ export class MessageRepository {
     );
     return Number(row?.count ?? 0);
   }
+
+  /**
+   * Delete stored transcripts of sessions inactive for longer than `days`.
+   *
+   * The retention period for conversation text. Messages are already redacted, but a
+   * redacted health conversation is still sensitive and has no use once a session is
+   * over and the evaluation that needed it is complete. The structured outcome row
+   * (urgency, slots, rule IDs, citations) is kept for the separate, longer period in
+   * `SessionRepository.purgeInactiveOlderThan`.
+   */
+  async purgeTranscriptsOlderThan(days: number): Promise<number> {
+    const rows = await this.db.query<{ id: string }>(
+      `DELETE FROM messages m
+        USING sessions s
+        WHERE m.session_id = s.id
+          AND s.last_activity_at < NOW() - ($1 || ' days')::interval
+        RETURNING m.id`,
+      [String(days)],
+    );
+    return rows.length;
+  }
 }
