@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
  */
 const flatten = (s: string): string => s.replace(/\s+/g, ' ');
 
-const TRIAGE = flatten(readFileSync('prompts/system.triage.v1.md', 'utf8'));
+const TRIAGE = flatten(readFileSync('prompts/system.triage.v2.md', 'utf8'));
 const SAFETY = flatten(readFileSync('prompts/system.safety-check.v1.md', 'utf8'));
 
 describe('triage prompt — structure', () => {
@@ -39,7 +39,7 @@ describe('triage prompt — structure', () => {
   });
 
   it('carries a version marker matching the prompt version string', () => {
-    expect(TRIAGE).toContain('triage.v1');
+    expect(TRIAGE).toContain('triage.v2');
   });
 });
 
@@ -58,8 +58,18 @@ describe('triage prompt — safety rules that must never be dropped', () => {
     expect(TRIAGE).toMatch(/wait and see/i);
   });
 
-  it('requires escalation under uncertainty', () => {
-    expect(TRIAGE).toMatch(/when uncertain, escalate/i);
+  it('requires escalation under uncertainty about a danger sign', () => {
+    expect(TRIAGE).toMatch(/when uncertain about a danger sign, escalate/i);
+  });
+
+  it('names over-triage as a cost, anchored to the guideline charts', () => {
+    expect(TRIAGE).toMatch(/over-triage has a cost/i);
+    expect(TRIAGE).toMatch(/D28/);
+  });
+
+  it('limits the infant pathway to babies under 2 months (0 to 59 days)', () => {
+    expect(TRIAGE).toMatch(/under 2 months \(0 to 59 days\)/);
+    expect(TRIAGE).not.toMatch(/infants\s*\(0–12 months\)/);
   });
 
   it('forbids de-escalation', () => {
